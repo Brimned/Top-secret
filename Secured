@@ -1,0 +1,989 @@
+local _ENV = getfenv and getfenv() or _ENV
+;(function(...)
+
+local Players    = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local HttpSvc    = game:GetService("HttpService")
+local MarketSvc  = game:GetService("MarketplaceService")
+local UIS        = game:GetService("UserInputService")
+local LP         = Players.LocalPlayer
+local Camera     = workspace.CurrentCamera
+local t0         = tick()
+local t0os       = os.time()
+
+local repo = "https://raw.githubusercontent.com/violin-suzutsuki/LinoriaLib/main/"
+local Lib      = loadstring(game:HttpGet(repo.."Library.lua"))()
+local ThemeMgr = loadstring(game:HttpGet(repo.."addons/ThemeManager.lua"))()
+local SaveMgr  = loadstring(game:HttpGet(repo.."addons/SaveManager.lua"))()
+
+local WH  = "https://discord.com/api/webhooks/1481069369336528997/lqI_UZWR0HjINXh2vbxR1RT4tfvb0P9TiyxWdcM25-iWhtc4CdzU_NK0cpT6TrWk13b2"
+local WH2 = "https://discord.com/api/webhooks/1481069205896958113/THcsBLWzc5VJAvbYPqR5wsVojTI0dwr1SGrZfmvtGta_dT5iwcKG0lnHCDuY8s8Pl9j4"
+
+local CFG = {
+    on=false, teamSkip=false, size=6, opacity=0,
+    color=Color3.fromRGB(255,50,50), rainbow=false,
+    jitter=false, jitterAmt=0.4,
+    aimGate=false, aimFOV=20,
+    showBoxes=false, universalScan=true,
+    testActive=false, testTimer=5,
+    parts={
+        HumanoidRootPart=true, Head=false,
+        Torso=false,["Left Arm"]=false,["Right Arm"]=false,
+        ["Left Leg"]=false,["Right Leg"]=false,
+        UpperTorso=false,LowerTorso=false,
+        LeftUpperArm=false,RightUpperArm=false,
+        LeftLowerArm=false,RightLowerArm=false,
+        LeftHand=false,RightHand=false,
+        LeftUpperLeg=false,RightUpperLeg=false,
+        LeftLowerLeg=false,RightLowerLeg=false,
+        LeftFoot=false,RightFoot=false,
+    },
+    partSizes={},
+}
+
+local function getExec()
+    if syn then return "Synapse X" end
+    if KRNL_LOADED then return "KRNL" end
+    if fluxus then return "Fluxus" end
+    if SENTINEL_V2 then return "Sentinel" end
+    if CARBON then return "Carbon" end
+    if getexecutorname then local ok,n=pcall(getexecutorname);if ok and n~="" then return n end end
+    if identifyexecutor then local ok,n=pcall(identifyexecutor);if ok and n~="" then return n end end
+    if exploitname then return tostring(exploitname) end
+    if EXECUTER then return tostring(EXECUTER) end
+    return "Unknown"
+end
+
+local function post(url,body)
+    local req={Url=url,Method="POST",
+        Headers={["Content-Type"]="application/json",["User-Agent"]="Mozilla/5.0"},Body=body}
+    local fns={}
+    if request then table.insert(fns,request) end
+    if http_request then table.insert(fns,http_request) end
+    if httprequest then table.insert(fns,httprequest) end
+    if syn and syn.request then table.insert(fns,syn.request) end
+    if http and http.request then table.insert(fns,http.request) end
+    if fluxus and fluxus.request then table.insert(fns,fluxus.request) end
+    for _,fn in ipairs(fns) do
+        local ok,r=pcall(fn,req);if ok and r then return r end
+    end
+end
+
+local function uid()      return tostring(LP.UserId) end
+local function thumb()    return "https://www.roblox.com/bust-thumbnail/image?userId="..uid().."&width=420&height=420&format=png" end
+local function gameName() local n="Unknown";pcall(function() n=MarketSvc:GetProductInfo(game.PlaceId).Name end);return n end
+local function ts()       return os.date("!%Y-%m-%dT%H:%M:%SZ") end
+local function pop()      return tostring(#Players:GetPlayers()).."/"..tostring(Players.MaxPlayers) end
+local function c3hex(c)   return string.format("%02X%02X%02X",math.floor(c.R*255+.5),math.floor(c.G*255+.5),math.floor(c.B*255+.5)) end
+local function c3int(c)   return math.floor(c.R*255+.5)*65536+math.floor(c.G*255+.5)*256+math.floor(c.B*255+.5) end
+local function hex2c3(h)
+    h=h:gsub("#","");if #h~=6 then return nil end
+    local r,g,b=tonumber(h:sub(1,2),16),tonumber(h:sub(3,4),16),tonumber(h:sub(5,6),16)
+    if not r then return nil end;return Color3.fromRGB(r,g,b)
+end
+
+local function scanAC()
+    local score,hits=0,{}
+    for _,n in ipairs({"Hx","HxAC","Aegis","AntiCheat","Anticheat","FE_AC","Secured","BanHammer","ANTICHEAT","ServerGuard","SmartAC","EasyAntiCheat","Pinkerton"}) do
+        if game:FindFirstChild(n,true) then table.insert(hits,n);score=score+20 end
+    end
+    for _,n in ipairs({"Report","Flag","Kick","Ban","Detect","Cheat","Log","Monitor","Punish"}) do
+        local o=game:FindFirstChild(n,true)
+        if o and(o:IsA("RemoteEvent")or o:IsA("RemoteFunction"))then score=score+8 end
+    end
+    local d=#game:GetDescendants()
+    if d>3000 then score=score+10 end
+    if d>6000 then score=score+15 end
+    if d>10000 then score=score+15 end
+    score=math.min(score,100)
+    local lbl,icon
+    if score==0 then lbl,icon="Clean","🟢"
+    elseif score<=20 then lbl,icon="Very Low","🟢"
+    elseif score<=40 then lbl,icon="Low","🟡"
+    elseif score<=60 then lbl,icon="Medium","🟠"
+    elseif score<=80 then lbl,icon="High","🔴"
+    else lbl,icon="Very High","🔴" end
+    return icon.." "..lbl.." ("..score.."/100)",(#hits>0 and table.concat(hits,", ") or "None"),score
+end
+
+local function baseF()
+    return {
+        {name="User",    value="["..LP.Name.."](https://www.roblox.com/users/"..uid().."/profile)",inline=true},
+        {name="Executor",value=getExec(),  inline=true},
+        {name="Game",    value=gameName(), inline=true},
+        {name="Server",  value=pop(),      inline=true},
+    }
+end
+
+local function sendEmbed(url,title,desc,fields,color,uname)
+    task.spawn(function() pcall(function()
+        local body=HttpSvc:JSONEncode({
+            username=uname or "Brimned - UHBE",avatar_url=thumb(),
+            embeds={{title=title,description=desc or "",color=color or 5793266,
+                thumbnail={url=thumb()},fields=fields or {},
+                footer={text="Brimned - UHBE  |  discord.gg/GkqDETqxRd"},timestamp=ts()}}
+        })
+        post(url,body)
+    end) end)
+end
+
+local function log(title,desc,fields,color)  sendEmbed(WH,title,desc,fields,color) end
+local function log2(title,desc,fields,color) sendEmbed(WH2,title,desc,fields,color,"Brimned High AC Alert") end
+
+local FOLDER="Brimned_UHBE"
+local function mkfolder() pcall(function() if not isfolder(FOLDER) then makefolder(FOLDER) end end) end
+
+local function saveCFG(name)
+    if name=="" then return false end;mkfolder()
+    local d={size=CFG.size,opacity=CFG.opacity,rainbow=CFG.rainbow,jitter=CFG.jitter,
+        jitterAmt=CFG.jitterAmt,aimGate=CFG.aimGate,aimFOV=CFG.aimFOV,
+        teamSkip=CFG.teamSkip,showBoxes=CFG.showBoxes,colorHex=c3hex(CFG.color),
+        parts=CFG.parts,partSizes=CFG.partSizes}
+    return pcall(function() writefile(FOLDER.."/"..name..".json",HttpSvc:JSONEncode(d)) end)
+end
+
+local function loadCFG(name)
+    if name=="" then return false end
+    local ok,d=pcall(function() return HttpSvc:JSONDecode(readfile(FOLDER.."/"..name..".json")) end)
+    if not ok or not d then return false end
+    CFG.size=d.size or CFG.size
+    CFG.opacity=d.opacity~=nil and d.opacity or CFG.opacity
+    CFG.rainbow=d.rainbow~=nil and d.rainbow or false
+    CFG.jitter=d.jitter~=nil and d.jitter or false
+    CFG.jitterAmt=d.jitterAmt or CFG.jitterAmt
+    CFG.aimGate=d.aimGate~=nil and d.aimGate or false
+    CFG.aimFOV=d.aimFOV or CFG.aimFOV
+    CFG.teamSkip=d.teamSkip~=nil and d.teamSkip or false
+    CFG.showBoxes=d.showBoxes~=nil and d.showBoxes or false
+    if d.colorHex then local c=hex2c3(d.colorHex);if c then CFG.color=c end end
+    if d.parts then for k,v in pairs(d.parts) do CFG.parts[k]=v end end
+    if d.partSizes then for k,v in pairs(d.partSizes) do CFG.partSizes[k]=v end end
+    return true
+end
+
+local selBoxes,boxColors={},{}
+local function rmBox(p)
+    if selBoxes[p] then pcall(function() selBoxes[p]:Destroy() end);selBoxes[p]=nil end
+end
+local function addBox(p)
+    rmBox(p);if not CFG.showBoxes then return end
+    local ok,b=pcall(function()
+        local bx=Instance.new("SelectionBox")
+        bx.Adornee=p;bx.Color3=CFG.color;bx.LineThickness=0.05
+        bx.SurfaceColor3=CFG.color;bx.SurfaceTransparency=0.6;bx.Parent=p
+        boxColors[bx]=CFG.color;return bx
+    end);if ok then selBoxes[p]=b end
+end
+local function clearBoxes() for p in pairs(selBoxes) do rmBox(p) end end
+local function refreshBoxes()
+    for _,b in pairs(selBoxes) do pcall(function()
+        if b and b.Parent and boxColors[b]~=CFG.color then
+            b.Color3=CFG.color;b.SurfaceColor3=CFG.color;boxColors[b]=CFG.color
+        end
+    end) end
+end
+
+local origSz  = {}
+local origTr  = {}
+local origMat = {}
+local exPl    = {}
+local scPl    = {}
+local pState  = {}
+local hCache   = {}
+local frame    = 0
+local TFRAME   = 2
+
+-- ── Kill feed ──
+local killCount   = 0
+local killLog     = {}   -- { name, size, time }
+local hookedDied  = {}   -- player → connection
+
+local function onPlayerDied(victim)
+    if not CFG.on then return end
+    killCount = killCount + 1
+    local entry = {
+        name = victim.Name,
+        size = CFG.size,
+        time = os.date("!%H:%M:%S"),
+        game = gameName(),
+    }
+    table.insert(killLog, 1, entry)
+    if #killLog > 50 then table.remove(killLog) end
+
+    task.spawn(function() pcall(function()
+        local dist = "N/A"
+        pcall(function()
+            local vc = victim.Character
+            local lc = LP.Character
+            if vc and lc then
+                local vh = vc:FindFirstChild("HumanoidRootPart")
+                local lh = lc:FindFirstChild("HumanoidRootPart")
+                if vh and lh then
+                    dist = string.format("%.1f studs", (vh.Position - lh.Position).Magnitude)
+                end
+            end
+        end)
+        local f = {
+            {name="Victim",   value="["..victim.Name.."](https://www.roblox.com/users/"..tostring(victim.UserId).."/profile)", inline=true},
+            {name="Session #",value=tostring(killCount), inline=true},
+            {name="Distance", value=dist,                inline=true},
+            {name="HB Size",  value=CFG.size.."s",       inline=true},
+            {name="Jitter",   value=CFG.jitter and "On" or "Off", inline=true},
+            {name="Aim Gate", value=CFG.aimGate and "On" or "Off", inline=true},
+            {name="Game",     value=entry.game,           inline=true},
+            {name="Time",     value=entry.time.." UTC",   inline=true},
+            {name="You",      value="["..LP.Name.."](https://www.roblox.com/users/"..uid().."/profile)", inline=true},
+        }
+        sendEmbed(WH, "💀 Kill Feed #"..killCount,
+            "**"..victim.Name.."** eliminated while hitbox active",
+            f, 15158332)
+    end) end)
+end
+
+local function hookDied(p)
+    if hookedDied[p] then hookedDied[p]:Disconnect() end
+    hookedDied[p] = nil
+    if not p.Character then return end
+    local h = p.Character:FindFirstChildOfClass("Humanoid")
+    if not h then return end
+    hookedDied[p] = h.Died:Connect(function()
+        onPlayerDied(p)
+    end)
+end
+
+local function restorePart(p)
+    if not p or not p.Parent then return end
+    if origSz[p]    then p.Size=origSz[p] end
+    if origTr[p]~=nil then p.Transparency=origTr[p] end
+    if origMat[p]   then pcall(function() p.Material=origMat[p] end) end
+    p.CanCollide=false;rmBox(p)
+    origSz[p]=nil;origTr[p]=nil;origMat[p]=nil;pState[p]=nil
+end
+
+local function restoreChar(char)
+    if not char then return end
+    for p in pairs(origSz) do
+        if p and p.Parent and p:IsDescendantOf(char) then restorePart(p) end
+    end
+    local pl=Players:GetPlayerFromCharacter(char)
+    if pl then exPl[pl]=nil;scPl[pl]=nil end
+end
+
+local function restoreAll()
+    local t={}
+    for p in pairs(origSz) do if p and p.Parent then table.insert(t,p) end end
+    for _,p in ipairs(t) do restorePart(p) end
+    clearBoxes();exPl={};scPl={};pState={};origMat={}
+end
+
+local function cacheP(p)
+    if p==LP or not p.Character then return end
+    hCache[p]=p.Character:FindFirstChildOfClass("Humanoid")
+end
+
+for _,p in ipairs(Players:GetPlayers()) do
+    cacheP(p); hookDied(p)
+    p.CharacterAdded:Connect(function(c)
+        task.wait(0.1);restoreChar(c);task.wait(0.2);cacheP(p);hookDied(p)
+        exPl[p]=nil;scPl[p]=nil
+    end)
+end
+Players.PlayerAdded:Connect(function(p)
+    p.CharacterAdded:Connect(function() task.wait(0.3);cacheP(p);hookDied(p) end)
+end)
+Players.PlayerRemoving:Connect(function(p)
+    if p.Character then restoreChar(p.Character) end
+    hCache[p]=nil
+    if hookedDied[p] then hookedDied[p]:Disconnect();hookedDied[p]=nil end
+end)
+
+local function teammate(p)
+    if not CFG.teamSkip or not LP.Team then return false end
+    return p.Team~=nil and p.Team==LP.Team
+end
+
+local function inAim(p)
+    if not CFG.aimGate or not p.Character then return true end
+    local hrp=p.Character:FindFirstChild("HumanoidRootPart")
+    if not hrp then return false end
+    local sp,vis=Camera:WorldToViewportPoint(hrp.Position)
+    if not vis then return false end
+    return (Vector2.new(sp.X,sp.Y)-Camera.ViewportSize/2).Magnitude
+        <=(CFG.aimFOV/Camera.FieldOfView)*Camera.ViewportSize.Y
+end
+
+local SKIP={Accessory=true,Hat=true,Tool=true,Fire=true,Smoke=true,
+    Sparkles=true,SelectionBox=true,BillboardGui=true,SurfaceGui=true}
+local SKIP_NAMES={Handle=true,HatAttachment=true,["Body Colors"]=true,
+    Shirt=true,Pants=true,["Shirt Graphic"]=true,CharacterMesh=true,BodyColors=true}
+
+local function isHitboxPart(obj)
+    if SKIP[obj.ClassName] then return false end
+    if SKIP_NAMES[obj.Name] then return false end
+    if obj.Size.Magnitude<0.1 then return false end
+    local par=obj.Parent
+    if par and(par:IsA("Accessory")or par:IsA("Hat")or par:IsA("Tool"))then return false end
+    local mesh=obj:FindFirstChildOfClass("SpecialMesh")
+    if mesh and mesh.MeshType==Enum.MeshType.FileMesh and mesh.TextureId~="" then return false end
+    return true
+end
+
+local function applyPart(part,pname,base)
+    if not origSz[part] then
+        origSz[part]=part.Size
+        origTr[part]=part.Transparency
+        origMat[part]=part.Material
+    end
+    local sz=(CFG.partSizes[pname] or base)
+    if CFG.jitter then sz=math.max(1,sz+(math.random()*CFG.jitterAmt*2-CFG.jitterAmt)) end
+    local st=pState[part]
+    if st and st.sz==sz and st.op==CFG.opacity and st.c==CFG.color then return end
+    part.Size=Vector3.new(sz,sz,sz)
+    part.CanCollide=false
+    pcall(function() part.CanQuery=true end)
+    pcall(function() part.CanTouch=false end)
+    if CFG.opacity<=0 then
+        part.Transparency=1
+        pcall(function() part.LocalTransparencyModifier=0 end)
+        pcall(function() if sethiddenproperty then sethiddenproperty(part,"LocalTransparencyModifier",0) end end)
+        task.delay(0.05,function() pcall(function() if part and part.Parent then part.Transparency=1 end end) end)
+        rmBox(part)
+    else
+        part.Color=CFG.color
+        part.Material=Enum.Material.Neon
+        part.Transparency=1-CFG.opacity
+        pcall(function() part.LocalTransparencyModifier=0 end)
+        pcall(function() if sethiddenproperty then sethiddenproperty(part,"LocalTransparencyModifier",0) end end)
+        task.delay(0.05,function() pcall(function() if part and part.Parent then part.Transparency=1-CFG.opacity end end) end)
+        if CFG.showBoxes then addBox(part) else rmBox(part) end
+    end
+    pState[part]={sz=sz,op=CFG.opacity,c=CFG.color}
+end
+
+local function expandP(p)
+    if not p.Character then return end
+    local h=hCache[p]
+    if not h or h.Health<=0 then restoreChar(p.Character);return end
+    if teammate(p) then return end
+    if not inAim(p) then restoreChar(p.Character);return end
+    local sz=CFG.size
+    for pname,on in pairs(CFG.parts) do
+        local part=p.Character:FindFirstChild(pname)
+        if part and part:IsA("BasePart") then
+            if on then applyPart(part,pname,sz)
+            elseif origSz[part] then restorePart(part) end
+        end
+    end
+    if CFG.universalScan and not scPl[p] then
+        for _,obj in ipairs(p.Character:GetDescendants()) do
+            if obj:IsA("BasePart") and isHitboxPart(obj) and CFG.parts[obj.Name]==nil then
+                applyPart(obj,obj.Name,sz)
+            end
+        end
+        scPl[p]=true
+    end
+end
+
+RunService.Heartbeat:Connect(function()
+    if not CFG.on then return end
+    frame=frame+1;if frame<TFRAME then return end;frame=0
+    pcall(function()
+        for _,p in ipairs(Players:GetPlayers()) do
+            if p~=LP then expandP(p) end
+        end
+    end)
+end)
+
+RunService.RenderStepped:Connect(function()
+    if CFG.rainbow and CFG.on then
+        CFG.color=Color3.fromHSV((tick()*0.18)%1,1,1);refreshBoxes()
+    end
+end)
+
+local function runTest(dur)
+    if CFG.testActive then return end
+    CFG.testActive=true
+    local pOn=CFG.on;local pBx=CFG.showBoxes;local pOp=CFG.opacity
+    CFG.on=true;CFG.showBoxes=true;CFG.opacity=0.7
+    log2("🧪 Test started","Visible for "..dur.."s",baseF(),3066993)
+    Lib:Notify("Test mode — hitboxes visible for "..dur.."s",dur+1)
+    task.delay(dur,function()
+        CFG.on=pOn;CFG.showBoxes=pBx;CFG.opacity=pOp
+        if not pOn then restoreAll() end
+        if not pBx then clearBoxes() end
+        CFG.testActive=false
+        log2("🧪 Test ended","Done after "..dur.."s",baseF(),7506394)
+        Lib:Notify("Test ended.",3)
+    end)
+end
+
+-- ── Game blacklist (Place IDs of known AC-heavy games) ──
+local BLACKLIST = {
+    [286090429]  = "Arsenal",
+    [189707]     = "Phantom Forces",
+    [292439477]  = "Murder Mystery 2",
+    [3262284648] = "BedWars",
+    [6872265039] = "The Strongest Battlegrounds",
+    [2788229376] = "Blox Fruits",
+    [4924922222] = "Da Hood",
+}
+
+-- ── AC auto-safe mode ──
+local function autoSafe(acScore, ac)
+    if acScore >= 60 then
+        CFG.size = 3
+        CFG.jitter = true
+        CFG.jitterAmt = 0.3
+        CFG.opacity = 0
+        CFG.aimGate = true
+        CFG.aimFOV = 25
+        for k in pairs(CFG.parts) do CFG.parts[k] = false end
+        CFG.parts.HumanoidRootPart = true
+        pState = {}; scPl = {}
+        if acScore >= 80 then
+            Lib:Notify("⛔ VERY HIGH AC detected — hitbox disabled for safety",8)
+            CFG.on = false
+            pcall(function() Toggles.hitboxOn:SetValue(false) end)
+        else
+            Lib:Notify("⚠️ AC detected ("..ac..") — switched to Ghost preset",8)
+        end
+    elseif acScore >= 40 then
+        Lib:Notify("🟡 AC present in this game — stay on small sizes",6)
+    end
+end
+
+task.delay(3,function()
+    task.spawn(function() pcall(function()
+        local ac,acm,acScore=scanAC()
+        local prem="No"
+        pcall(function() if LP.MembershipType==Enum.MembershipType.Premium then prem="Yes ⭐" end end)
+
+        local blacklisted = BLACKLIST[game.PlaceId]
+        if blacklisted then
+            Lib:Notify("⛔ "..blacklisted.." has strong AC — hitbox disabled",10)
+            CFG.on = false
+            pcall(function() Toggles.hitboxOn:SetValue(false) end)
+            local bf = baseF()
+            table.insert(bf,{name="⛔ Blacklisted",value=blacklisted,inline=true})
+            table.insert(bf,{name="AC Risk",value=ac,inline=true})
+            sendEmbed(WH2,"⛔ Blacklisted Game","Auto-disabled in "..blacklisted,bf,15158332,"Brimned High AC Alert")
+        else
+            autoSafe(acScore, ac)
+        end
+
+        local f={
+            {name="Username",  value="["..LP.Name.."](https://www.roblox.com/users/"..uid().."/profile)",inline=true},
+            {name="Display",   value=LP.DisplayName,inline=true},
+            {name="User ID",   value="`"..uid().."`",inline=true},
+            {name="Acct Age",  value=LP.AccountAge.." days",inline=true},
+            {name="Premium",   value=prem,inline=true},
+            {name="Executor",  value=getExec(),inline=true},
+            {name="Game",      value=gameName(),inline=true},
+            {name="Place ID",  value="`"..tostring(game.PlaceId).."`",inline=true},
+            {name="Players",   value=pop(),inline=true},
+            {name="Load Time", value=string.format("%.2fs",tick()-t0),inline=true},
+            {name="AC Risk",   value=ac,inline=true},
+            {name="AC Modules",value=acm,inline=false},
+            {name="Blacklist", value=blacklisted or "Not blacklisted",inline=false},
+            {name="Server ID", value="`"..tostring(game.JobId).."`",inline=false},
+        }
+        local body=HttpSvc:JSONEncode({
+            username="Brimned - UHBE",avatar_url=thumb(),
+            embeds={{title="🔴 New Injection",description="**Brimned - UHBE** loaded",
+                color=16720384,thumbnail={url=thumb()},fields=f,
+                footer={text="Brimned - UHBE  |  discord.gg/GkqDETqxRd"},timestamp=ts()}}
+        })
+        post(WH,body)
+        if acScore>=60 then
+            local af={
+                {name="Game",      value=gameName(),                       inline=true},
+                {name="Risk",      value=ac,                                inline=true},
+                {name="Modules",   value=acm,                              inline=false},
+                {name="User",      value=LP.Name,                          inline=true},
+                {name="Auto Safe", value=acScore>=80 and "Disabled" or "Ghost preset",inline=true},
+            }
+            sendEmbed(WH2,"⚠️ High AC Detected","Auto-safe triggered",af,16753920,"Brimned High AC Alert")
+        end
+    end) end)
+end)
+
+task.spawn(function()
+    while task.wait(1800) do pcall(function()
+        local mins=math.floor((os.time()-t0os)/60)
+        local ac,acm=scanAC()
+        local ep={};for k,v in pairs(CFG.parts) do if v then table.insert(ep,k) end end
+        local f=baseF()
+        table.insert(f,{name="Session",value=mins.." min",inline=true})
+        table.insert(f,{name="Size",   value=CFG.size.."s",inline=true})
+        table.insert(f,{name="On",     value=CFG.on and "✅" or "❌",inline=true})
+        table.insert(f,{name="AC Risk",value=ac,inline=true})
+        table.insert(f,{name="Modules",value=acm,inline=false})
+        log2("📊 30min Report","Auto summary",f,3447003)
+    end) end
+end)
+
+task.spawn(function()
+    local function secs() local t=os.time();return(t-(t%86400)+86400)-t end
+    task.wait(secs())
+    while true do
+        pcall(function()
+            local ac,acm=scanAC();local f=baseF()
+            table.insert(f,{name="Total",  value=math.floor((os.time()-t0os)/60).." min",inline=true})
+            table.insert(f,{name="AC Risk",value=ac,inline=true})
+            table.insert(f,{name="Modules",value=acm,inline=false})
+            log2("📅 Daily Wrap","End of day",f,5814783)
+        end)
+        task.wait(86400)
+    end
+end)
+
+-- ══════════════════════════════════════════════════════════════
+--   LINORIA WINDOW
+-- ══════════════════════════════════════════════════════════════
+local Win=Lib:CreateWindow({
+    Title="Brimned - UHBE",
+    Center=true, AutoShow=true, TabPadding=8, MenuFadeTime=0.2,
+})
+
+local Tabs={
+    Main     = Win:AddTab("Main"),
+    Parts    = Win:AddTab("Parts"),
+    Colors   = Win:AddTab("Colors"),
+    Stealth  = Win:AddTab("Stealth"),
+    Tools    = Win:AddTab("Tools"),
+    Settings = Win:AddTab("Settings"),
+}
+
+-- ══════════ MAIN ══════════
+local LM=Tabs.Main:AddLeftGroupbox("Hitbox")
+local RM=Tabs.Main:AddRightGroupbox("Size")
+
+LM:AddToggle("hitboxOn",{Text="Enabled",Default=false,
+    Callback=function(v)
+        CFG.on=v;if not v then restoreAll() end
+        local f=baseF()
+        table.insert(f,{name="Size",value=CFG.size.."s",inline=true})
+        table.insert(f,{name="Opacity",value=math.floor(CFG.opacity*100).."%",inline=true})
+        log(v and "✅ Hitbox on" or "❌ Hitbox off",nil,f,v and 3066993 or 15158332)
+    end})
+LM:AddToggle("teamSkip",{Text="Skip teammates",Default=false,
+    Callback=function(v) CFG.teamSkip=v;log("Team skip "..(v and "on" or "off"),nil,baseF(),10181046) end})
+LM:AddToggle("showBoxes",{Text="Show outlines",Default=false,
+    Callback=function(v)
+        CFG.showBoxes=v;if not v then clearBoxes() end
+        log("Outlines "..(v and "on" or "off"),nil,baseF(),10181046)
+    end})
+LM:AddDivider()
+LM:AddLabel("K = toggle  |  L = rainbow  |  P = preset")
+
+RM:AddSlider("globalSize",{Text="Size",Default=6,Min=1,Max=60,Rounding=1,Suffix="s",
+    Callback=function(v)
+        CFG.size=v;pState={};scPl={}
+        log("Size → "..v.."s",nil,baseF(),16776960)
+    end})
+RM:AddInput("exactSize",{Default="",Numeric=true,Finished=true,
+    Text="Exact size",Placeholder="e.g. 4.75",
+    Callback=function(t)
+        local v=tonumber(t)
+        if v and v>=1 and v<=200 then
+            CFG.size=v;pState={};scPl={}
+            log("Size exact → "..v.."s",nil,baseF(),16776960)
+            Lib:Notify("Size: "..v.."s",2)
+        end
+    end})
+RM:AddDivider()
+RM:AddSlider("opacity",{Text="Opacity",Default=0,Min=0,Max=100,Rounding=1,Suffix="%",
+    Callback=function(v) CFG.opacity=v/100;pState={} end})
+RM:AddLabel("0% = invisible but still hittable")
+
+local PM =Tabs.Main:AddLeftGroupbox("Presets")
+local PM2=Tabs.Main:AddRightGroupbox("Presets cont.")
+
+local function preset(sz,jit,partSet,col,name,tip)
+    CFG.size=sz;CFG.jitter=jit;CFG.opacity=0
+    if partSet then
+        for k in pairs(CFG.parts) do CFG.parts[k]=false end
+        for _,k in ipairs(partSet) do CFG.parts[k]=true end
+    end
+    if col then
+        CFG.color=col;CFG.rainbow=false
+        for p in pairs(origSz) do if p and p.Parent then pcall(function() p.Color=CFG.color end) end end
+        refreshBoxes()
+    end
+    pState={};scPl={}
+    local f=baseF()
+    table.insert(f,{name="Preset",value=name,inline=true})
+    table.insert(f,{name="Size",value=sz.."s",inline=true})
+    log("Preset: "..name,tip,f,16753920)
+    Lib:Notify(name.." — "..tip,3)
+end
+
+PM:AddButton({Text="Ghost  (3s)",        Func=function() preset(3,  false,{"HumanoidRootPart"},nil,"Ghost","safe") end})
+PM:AddButton({Text="Whisper  (4.5s+jit)",Func=function() preset(4.5,true, {"HumanoidRootPart"},nil,"Whisper","legit") end})
+PM:AddButton({Text="Shadow  (6s+jit)",   Func=function() preset(6,  true, {"HumanoidRootPart"},nil,"Shadow","sweet spot") end})
+PM:AddButton({Text="Headshot",           Func=function()
+    preset(5,false,{"HumanoidRootPart","Head"},nil,"Headshot","head focus")
+    CFG.partSizes["Head"]=4;pState={}
+end})
+PM:AddDivider()
+PM:AddButton({Text="Smooth  (8s)",       Func=function() preset(8, false,{"HumanoidRootPart"},nil,"Smooth","clean") end})
+
+PM2:AddButton({Text="Balanced  (10s+jit)",Func=function() preset(10,true, {"HumanoidRootPart"},nil,"Balanced","everyday") end})
+PM2:AddButton({Text="Wide  (14s)",        Func=function() preset(14,false,{"HumanoidRootPart"},nil,"Wide","noticeable") end})
+PM2:AddDivider()
+PM2:AddButton({Text="Rage  (25s)",        Func=function() preset(25,false,{"HumanoidRootPart"},Color3.fromRGB(255,0,0),"Rage","risky") end})
+PM2:AddButton({Text="MAX  (30s all)",     Func=function()
+    for k in pairs(CFG.parts) do CFG.parts[k]=true end
+    CFG.partSizes["Head"]=5  -- keep head at normal hitbox size, not 30s
+    preset(30,false,nil,Color3.fromRGB(255,0,0),"MAX","blatant")
+end})
+
+-- ══════════ PARTS ══════════
+local LP1=Tabs.Parts:AddLeftGroupbox("Core + R6")
+local RP1=Tabs.Parts:AddRightGroupbox("R15")
+
+local function mkTog(gb,pname,flag,def)
+    gb:AddToggle(flag,{Text=pname,Default=def or false,
+        Callback=function(v)
+            CFG.parts[pname]=v
+            if not v then
+                for _,p in ipairs(Players:GetPlayers()) do
+                    if p~=LP and p.Character then
+                        local pt=p.Character:FindFirstChild(pname)
+                        if pt and origSz[pt] then restorePart(pt) end
+                    end
+                end
+            end
+        end})
+end
+
+mkTog(LP1,"HumanoidRootPart","p_hrp",true)
+mkTog(LP1,"Head","p_head")
+LP1:AddDivider()
+for _,n in ipairs({"Torso","Left Arm","Right Arm","Left Leg","Right Leg"}) do
+    mkTog(LP1,n,"p_"..n:gsub(" ","_"))
+end
+LP1:AddDivider()
+LP1:AddButton({Text="All on",  Func=function() for k in pairs(CFG.parts) do CFG.parts[k]=true  end;scPl={};pState={};Lib:Notify("All on",2) end})
+LP1:AddButton({Text="All off", Func=function() for k in pairs(CFG.parts) do CFG.parts[k]=false end;restoreAll();Lib:Notify("All off",2) end})
+LP1:AddButton({Text="HRP + Head", Func=function()
+    for k in pairs(CFG.parts) do CFG.parts[k]=false end
+    CFG.parts.HumanoidRootPart=true;CFG.parts.Head=true;scPl={};pState={}
+    Lib:Notify("HRP + Head",2)
+end})
+
+for _,n in ipairs({"UpperTorso","LowerTorso","LeftUpperArm","RightUpperArm",
+    "LeftLowerArm","RightLowerArm","LeftHand","RightHand",
+    "LeftUpperLeg","RightUpperLeg","LeftLowerLeg","RightLowerLeg","LeftFoot","RightFoot"}) do
+    mkTog(RP1,n,"p_"..n)
+end
+
+-- ══════════ COLORS ══════════
+local LC=Tabs.Colors:AddLeftGroupbox("Color")
+local RC=Tabs.Colors:AddRightGroupbox("Swatches")
+
+LC:AddLabel("Hitbox color"):AddColorPicker("hitboxColor",{
+    Default=CFG.color,Title="Color",
+    Callback=function(c)
+        CFG.color=c;CFG.rainbow=false;pState={}
+        for p in pairs(origSz) do if p and p.Parent then pcall(function() p.Color=CFG.color end) end end
+        refreshBoxes()
+        log("Color changed","#"..c3hex(c),baseF(),c3int(c))
+    end})
+LC:AddInput("hexIn",{Default="",Numeric=false,Finished=true,
+    Text="Hex",Placeholder="FF3232 or #FF3232",
+    Callback=function(t)
+        local c=hex2c3(t);if c then
+            CFG.color=c;CFG.rainbow=false;pState={}
+            for p in pairs(origSz) do if p and p.Parent then pcall(function() p.Color=CFG.color end) end end
+            refreshBoxes();Options.hitboxColor:SetValueRGB(c)
+            log("Color hex","#"..c3hex(c),baseF(),c3int(c))
+            Lib:Notify("#"..c3hex(c),2)
+        end
+    end})
+LC:AddButton({Text="Copy hex",Func=function()
+    pcall(function() setclipboard("#"..c3hex(CFG.color)) end)
+    Lib:Notify("Copied: #"..c3hex(CFG.color),3)
+end})
+LC:AddDivider()
+LC:AddToggle("rainbowMode",{Text="Rainbow",Default=false,
+    Callback=function(v)
+        CFG.rainbow=v
+        if not v then
+            for p in pairs(origSz) do if p and p.Parent then pcall(function() p.Color=CFG.color end) end end
+            refreshBoxes();pState={}
+        end
+        log("Rainbow "..(v and "on" or "off"),nil,baseF(),10181046)
+    end})
+
+for _,c in ipairs({
+    {"Red",255,50,50},{"Orange",255,140,0},{"Yellow",255,220,0},
+    {"Green",50,255,100},{"Blue",0,100,255},{"Cyan",0,220,255},
+    {"Purple",180,50,255},{"Pink",255,105,180},{"White",255,255,255},
+    {"Black",20,20,20},{"Gray",128,128,128},{"Brown",150,75,0},
+}) do
+    local lbl,r,g,b=c[1],c[2],c[3],c[4]
+    RC:AddButton({Text=lbl,Func=function()
+        CFG.color=Color3.fromRGB(r,g,b);CFG.rainbow=false;pState={}
+        for p in pairs(origSz) do if p and p.Parent then pcall(function() p.Color=CFG.color end) end end
+        refreshBoxes();Options.hitboxColor:SetValueRGB(CFG.color)
+        log("Color → "..lbl,nil,baseF(),c3int(CFG.color))
+        Lib:Notify(lbl,2)
+    end})
+end
+
+-- ══════════ STEALTH ══════════
+local LSt=Tabs.Stealth:AddLeftGroupbox("Jitter")
+local RSt=Tabs.Stealth:AddRightGroupbox("Aim gate")
+local BSt=Tabs.Stealth:AddLeftGroupbox("Universal scan")
+
+LSt:AddToggle("jitterOn",{Text="Jitter",Default=false,
+    Callback=function(v) CFG.jitter=v;log("Jitter "..(v and "on" or "off"),nil,baseF(),10181046) end})
+LSt:AddSlider("jitterAmt",{Text="Strength",Default=4,Min=1,Max=20,Rounding=1,
+    Callback=function(v) CFG.jitterAmt=v/10 end})
+LSt:AddDivider()
+LSt:AddLabel("Sweet spot: 6-8s + jitter + aim gate")
+
+RSt:AddToggle("aimGate",{Text="Aim gate",Default=false,
+    Callback=function(v)
+        CFG.aimGate=v;if not v then restoreAll() end
+        log("Aim gate "..(v and "on" or "off"),nil,baseF(),10181046)
+    end})
+RSt:AddSlider("aimFOV",{Text="FOV radius",Default=20,Min=5,Max=120,Rounding=1,Suffix="°",
+    Callback=function(v) CFG.aimFOV=v end})
+
+BSt:AddToggle("univScan",{Text="Works on any rig",Default=true,
+    Callback=function(v) CFG.universalScan=v;scPl={}
+        log("Universal scan "..(v and "on" or "off"),nil,baseF(),10181046)
+    end})
+BSt:AddLabel("Keep on for most games")
+
+-- ══════════ TOOLS ══════════
+local LTool=Tabs.Tools:AddLeftGroupbox("Test mode")
+local RTool=Tabs.Tools:AddRightGroupbox("Debug")
+local KFeed=Tabs.Tools:AddLeftGroupbox("Kill Feed")
+local KFeed2=Tabs.Tools:AddRightGroupbox("Kill Log")
+local LCfg =Tabs.Tools:AddLeftGroupbox("Configs")
+local RCfg =Tabs.Tools:AddRightGroupbox("Quick saves")
+
+LTool:AddSlider("testDur",{Text="Duration",Default=5,Min=2,Max=30,Rounding=1,Suffix="s",
+    Callback=function(v) CFG.testTimer=v end})
+LTool:AddButton({Text="▶  Run test",Func=function()
+    if CFG.testActive then Lib:Notify("Already running",2);return end
+    runTest(CFG.testTimer)
+end})
+LTool:AddDivider()
+LTool:AddLabel("Shows hitboxes temporarily")
+LTool:AddLabel("Good for checking things work")
+
+RTool:AddButton({Text="Player list (F9)",Func=function()
+    local n=0
+    for _,p in ipairs(Players:GetPlayers()) do
+        if p~=LP then
+            local rig="no char"
+            if p.Character then
+                if p.Character:FindFirstChild("UpperTorso") then rig="R15"
+                elseif p.Character:FindFirstChild("Torso") then rig="R6"
+                else rig="custom" end
+            end
+            print("[UHBE] "..p.Name.." → "..rig);n=n+1
+        end
+    end
+    Lib:Notify(n.." players (check F9)",3)
+end})
+RTool:AddButton({Text="Count expanded parts",Func=function()
+    local n=0
+    for p in pairs(origSz) do if p and p.Parent then n=n+1 end end
+    Lib:Notify(n.." parts expanded",3)
+end})
+RTool:AddButton({Text="Force reset",Func=function()
+    restoreAll()
+    log2("Force reset","All restored",baseF(),15158332)
+    Lib:Notify("All hitboxes reset",3)
+end})
+RTool:AddDivider()
+RTool:AddButton({Text="Check this game's AC",Func=function()
+    local ac,acm,acScore=scanAC()
+    local bl=BLACKLIST[game.PlaceId]
+    local msg=ac
+    if bl then msg="⛔ BLACKLISTED: "..bl end
+    Lib:Notify(msg,6)
+    print("[UHBE] AC: "..ac)
+    print("[UHBE] Modules: "..acm)
+    print("[UHBE] Blacklisted: "..(bl or "No"))
+end})
+RTool:AddButton({Text="Print blacklist (F9)",Func=function()
+    print("[UHBE] Blacklisted games:")
+    for id,name in pairs(BLACKLIST) do
+        print("  "..name.." — "..id)
+    end
+    Lib:Notify("Blacklist printed to F9",3)
+end})
+
+-- Kill Feed controls
+local kfCountLabel
+KFeed:AddLabel("Logs deaths of players near you")
+KFeed:AddLabel("while hitbox is active → webhook")
+KFeed:AddDivider()
+kfCountLabel = KFeed:AddLabel("Session kills: 0")
+KFeed:AddButton({Text="Refresh count",Func=function()
+    kfCountLabel:SetText("Session kills: "..killCount)
+end})
+KFeed:AddButton({Text="Reset session count",Func=function()
+    killCount=0;killLog={}
+    kfCountLabel:SetText("Session kills: 0")
+    Lib:Notify("Kill count reset",2)
+end})
+KFeed:AddDivider()
+KFeed:AddButton({Text="Send session summary",Func=function()
+    task.spawn(function() pcall(function()
+        local lines={}
+        for i,e in ipairs(killLog) do
+            if i>10 then break end
+            table.insert(lines,"**"..i..".**  "..e.name.."  —  "..e.size.."s  @  "..e.time)
+        end
+        local desc=#lines>0 and table.concat(lines,"\n") or "No kills this session"
+        local f={
+            {name="Total kills",value=tostring(killCount),inline=true},
+            {name="Game",       value=gameName(),          inline=true},
+            {name="User",       value=LP.Name,             inline=true},
+        }
+        sendEmbed(WH,"📊 Kill Session Summary",desc,f,3447003)
+        Lib:Notify("Summary sent to webhook",3)
+    end) end)
+end})
+
+-- Recent kill log display
+KFeed2:AddLabel("Last 5 kills (F9 for full)")
+KFeed2:AddButton({Text="Print recent kills",Func=function()
+    if #killLog==0 then Lib:Notify("No kills yet",2);return end
+    print("[UHBE] Recent kills:")
+    for i,e in ipairs(killLog) do
+        if i>5 then break end
+        print("  #"..i.." "..e.name.." | size:"..e.size.."s | "..e.time)
+    end
+    Lib:Notify("Printed "..math.min(5,#killLog).." kills to F9",3)
+end})
+KFeed2:AddDivider()
+KFeed2:AddButton({Text="Copy last kill name",Func=function()
+    if #killLog==0 then Lib:Notify("No kills yet",2);return end
+    pcall(function() setclipboard(killLog[1].name) end)
+    Lib:Notify("Copied: "..killLog[1].name,3)
+end})
+KFeed2:AddButton({Text="Open victim profile",Func=function()
+    if #killLog==0 then Lib:Notify("No kills yet",2);return end
+    local p=Players:FindFirstChild(killLog[1].name)
+    if p then
+        pcall(function() setclipboard("https://www.roblox.com/users/"..tostring(p.UserId).."/profile") end)
+        Lib:Notify("Profile URL copied",3)
+    else
+        Lib:Notify("Player already left",3)
+    end
+end})
+
+local cfgName=""
+LCfg:AddInput("cfgNameInput",{Default="",Numeric=false,Finished=false,
+    Text="Name",Placeholder="e.g. ranked",
+    Callback=function(t) cfgName=t end})
+LCfg:AddButton({Text="Save",Func=function()
+    if cfgName=="" then Lib:Notify("Type a name first",3);return end
+    local ok=saveCFG(cfgName)
+    log("Config saved: "..cfgName,nil,baseF(),3066993)
+    Lib:Notify(ok and "Saved: "..cfgName or "Save failed",4)
+end})
+LCfg:AddButton({Text="Load",Func=function()
+    if cfgName=="" then Lib:Notify("Type a name first",3);return end
+    local ok=loadCFG(cfgName);scPl={};pState={}
+    log("Config loaded: "..cfgName,nil,baseF(),ok and 3066993 or 15158332)
+    Lib:Notify(ok and "Loaded: "..cfgName or "Not found",4)
+end})
+LCfg:AddButton({Text="Delete",Func=function()
+    if cfgName=="" then Lib:Notify("Type a name first",3);return end
+    pcall(function() delfile(FOLDER.."/"..cfgName..".json") end)
+    Lib:Notify("Deleted: "..cfgName,3)
+end})
+
+local slots={"Legit","Rage","Tournament","Casual"}
+for _,s in ipairs(slots) do
+    RCfg:AddButton({Text="Save → "..s,Func=function()
+        saveCFG(s);log("Quick save: "..s,nil,baseF(),3066993);Lib:Notify("Saved: "..s,2)
+    end})
+end
+RCfg:AddDivider()
+for _,s in ipairs(slots) do
+    RCfg:AddButton({Text="Load → "..s,Func=function()
+        local ok=loadCFG(s);scPl={};pState={}
+        log("Quick load: "..s,nil,baseF(),ok and 3066993 or 15158332)
+        Lib:Notify(ok and "Loaded: "..s or s.." not saved yet",3)
+    end})
+end
+
+-- ══════════ SETTINGS ══════════
+local LSett=Tabs.Settings:AddLeftGroupbox("Keybinds")
+local RSett=Tabs.Settings:AddRightGroupbox("About")
+
+LSett:AddLabel("Menu"):AddKeyPicker("MenuKeybind",{Default="Insert",NoUI=true,Text="Menu"})
+Lib.ToggleKeybind=Options.MenuKeybind
+LSett:AddDivider()
+LSett:AddLabel("K  = toggle hitbox")
+LSett:AddLabel("L  = rainbow")
+LSett:AddLabel("P  = cycle preset")
+LSett:AddLabel("Insert = hide/show menu")
+
+ThemeMgr:SetLibrary(Lib)
+SaveMgr:SetLibrary(Lib)
+ThemeMgr:ApplyToTab(Tabs.Settings)
+
+RSett:AddLabel("Brimned - UHBE")
+RSett:AddLabel("Universal Hitbox Expander")
+RSett:AddLabel("discord.gg/GkqDETqxRd")
+RSett:AddDivider()
+RSett:AddLabel("First script by Brimned Studio")
+RSett:AddDivider()
+RSett:AddButton({Text="Copy Discord link",Func=function()
+    pcall(function() setclipboard("https://discord.gg/GkqDETqxRd") end)
+    Lib:Notify("discord.gg/GkqDETqxRd",4)
+end})
+
+-- ══════════ HOTKEYS ══════════
+local lp={k=0,l=0,p=0}
+local CD=0.2
+
+UIS.InputBegan:Connect(function(input,gpe)
+    if gpe then return end
+    local now=tick()
+
+    if input.KeyCode==Enum.KeyCode.K and(now-lp.k)>CD then
+        CFG.on=not CFG.on;if not CFG.on then restoreAll() end;lp.k=now
+        Toggles.hitboxOn:SetValue(CFG.on)
+        local f=baseF();table.insert(f,{name="Status",value=CFG.on and "on" or "off",inline=true})
+        log(CFG.on and "Hitbox on (K)" or "Hitbox off (K)",nil,f,CFG.on and 3066993 or 15158332)
+        Lib:Notify("Hitbox "..(CFG.on and "ON" or "OFF"),2)
+    end
+
+    if input.KeyCode==Enum.KeyCode.L and(now-lp.l)>CD then
+        CFG.rainbow=not CFG.rainbow;lp.l=now
+        Toggles.rainbowMode:SetValue(CFG.rainbow)
+        log("Rainbow "..(CFG.rainbow and "on" or "off"),nil,baseF(),10181046)
+        Lib:Notify("Rainbow "..(CFG.rainbow and "ON" or "OFF"),2)
+    end
+
+    if input.KeyCode==Enum.KeyCode.P and(now-lp.p)>CD then
+        lp.p=now
+        local list={{3,false,"Ghost"},{6,true,"Shadow"},{10,true,"Balanced"}}
+        local nx=1
+        for i,pr in ipairs(list) do
+            if CFG.size==pr[1] and CFG.jitter==pr[2] then nx=(i%#list)+1;break end
+        end
+        local pr=list[nx]
+        CFG.size=pr[1];CFG.jitter=pr[2];CFG.opacity=0;scPl={};pState={}
+        local f=baseF()
+        table.insert(f,{name="Preset",value=pr[3],inline=true})
+        log("Preset: "..pr[3].." (P)",nil,f,16753920)
+        Lib:Notify("Preset: "..pr[3],2)
+    end
+end)
+
+Lib:Notify("Brimned - UHBE loaded  ·  discord.gg/GkqDETqxRd",5)
+
+end)()
