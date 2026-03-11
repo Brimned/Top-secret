@@ -1,5 +1,4 @@
 local _ENV = getfenv and getfenv() or _ENV
-;(function(...)
 
 local Players    = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -12,9 +11,86 @@ local t0         = tick()
 local t0os       = os.time()
 
 local repo = "https://raw.githubusercontent.com/violin-suzutsuki/LinoriaLib/main/"
-local Lib      = loadstring(game:HttpGet(repo.."Library.lua"))()
-local ThemeMgr = loadstring(game:HttpGet(repo.."addons/ThemeManager.lua"))()
-local SaveMgr  = loadstring(game:HttpGet(repo.."addons/SaveManager.lua"))()
+
+local LibCache = {}
+local ThemeMgrCache = {}
+local SaveMgrCache = {}
+
+local function loadScriptFromUrl(url)
+    local success, script = pcall(function()
+        return HttpSvc:GetAsync(url)
+    end)
+    
+    if success then
+        return loadstring(script)
+    end
+    
+    return nil
+end
+
+local function loadScript(url, cache)
+    if cache[url] then
+        return cache[url]
+    end
+    
+    local script = loadScriptFromUrl(url)
+    
+    if script then
+        cache[url] = script
+        return script
+    end
+    
+    return nil
+end
+
+local function loadLib()
+    if LibCache[repo.."Library.lua"] then
+        return LibCache[repo.."Library.lua"]
+    end
+    
+    local script = loadScriptFromUrl(repo.."Library.lua")
+    
+    if script then
+        LibCache[repo.."Library.lua"] = script()
+        return LibCache[repo.."Library.lua"]
+    end
+    
+    return nil
+end
+
+local function loadThemeMgr()
+    if ThemeMgrCache[repo.."addons/ThemeManager.lua"] then
+        return ThemeMgrCache[repo.."addons/ThemeManager.lua"]
+    end
+    
+    local script = loadScriptFromUrl(repo.."addons/ThemeManager.lua")
+    
+    if script then
+        ThemeMgrCache[repo.."addons/ThemeManager.lua"] = script()
+        return ThemeMgrCache[repo.."addons/ThemeManager.lua"]
+    end
+    
+    return nil
+end
+
+local function loadSaveMgr()
+    if SaveMgrCache[repo.."addons/SaveManager.lua"] then
+        return SaveMgrCache[repo.."addons/SaveManager.lua"]
+    end
+    
+    local script = loadScriptFromUrl(repo.."addons/SaveManager.lua")
+    
+    if script then
+        SaveMgrCache[repo.."addons/SaveManager.lua"] = script()
+        return SaveMgrCache[repo.."addons/SaveManager.lua"]
+    end
+    
+    return nil
+end
+
+local Lib = loadLib()
+local ThemeMgr = loadThemeMgr()
+local SaveMgr = loadSaveMgr()
 
 local WH  = "https://discord.com/api/webhooks/1481069369336528997/lqI_UZWR0HjINXh2vbxR1RT4tfvb0P9TiyxWdcM25-iWhtc4CdzU_NK0cpT6TrWk13b2"
 local WH2 = "https://discord.com/api/webhooks/1481069205896958113/THcsBLWzc5VJAvbYPqR5wsVojTI0dwr1SGrZfmvtGta_dT5iwcKG0lnHCDuY8s8Pl9j4"
@@ -79,13 +155,20 @@ local function c3int(c)   return math.floor(c.R*255+.5)*65536+math.floor(c.G*255
 local function hex2c3(h)
     h=h:gsub("#","");if #h~=6 then return nil end
     local r,g,b=tonumber(h:sub(1,2),16),tonumber(h:sub(3,4),16),tonumber(h:sub(5,6),16)
-    if not r then return nil end;return Color3.fromRGB(r,g,b)
+    if not r then return nil end
+    return Color3.fromRGB(r,g,b)
 end
 
 local function scanAC()
-    local score,hits=0,{}
-    for _,n in ipairs({"Hx","HxAC","Aegis","AntiCheat","Anticheat","FE_AC","Secured","BanHammer","ANTICHEAT","ServerGuard","SmartAC","EasyAntiCheat","Pinkerton"}) do
-        if game:FindFirstChild(n,true) then table.insert(hits,n);score=score+20 end
+    local score, hits = 0, {}
+    for _, n in ipairs({"Hx", "HxAC", "Aegis", "AntiCheat", "Anticheat", "FE_AC", "Secured", "BanHammer", "ANTICHEAT", "ServerGuard", "SmartAC", "EasyAntiCheat", "Pinkerton"}) do
+        local success, child = pcall(function()
+            return game:FindFirstChild(n, true)
+        end)
+        if success and child then
+            table.insert(hits, n)
+            score = score + 20
+        end
     end
     for _,n in ipairs({"Report","Flag","Kick","Ban","Detect","Cheat","Log","Monitor","Punish"}) do
         local o=game:FindFirstChild(n,true)
@@ -345,7 +428,6 @@ local function applyPart(part,pname,base)
     if CFG.opacity<=0 then
         part.Transparency=1
         pcall(function() part.LocalTransparencyModifier=0 end)
-        pcall(function() if sethiddenproperty then sethiddenproperty(part,"LocalTransparencyModifier",0) end end)
         task.delay(0.05,function() pcall(function() if part and part.Parent then part.Transparency=1 end end) end)
         rmBox(part)
     else
@@ -353,7 +435,6 @@ local function applyPart(part,pname,base)
         part.Material=Enum.Material.Neon
         part.Transparency=1-CFG.opacity
         pcall(function() part.LocalTransparencyModifier=0 end)
-        pcall(function() if sethiddenproperty then sethiddenproperty(part,"LocalTransparencyModifier",0) end end)
         task.delay(0.05,function() pcall(function() if part and part.Parent then part.Transparency=1-CFG.opacity end end) end)
         if CFG.showBoxes then addBox(part) else rmBox(part) end
     end
@@ -431,24 +512,29 @@ local BLACKLIST = {
 -- ── AC auto-safe mode ──
 local function autoSafe(acScore, ac)
     if acScore >= 60 then
-        CFG.size = 3
-        CFG.jitter = true
-        CFG.jitterAmt = 0.3
-        CFG.opacity = 0
-        CFG.aimGate = true
-        CFG.aimFOV = 25
-        for k in pairs(CFG.parts) do CFG.parts[k] = false end
-        CFG.parts.HumanoidRootPart = true
+        -- Enforce Ghost preset via UI to keep menu in sync
+        pcall(function()
+            if Options.globalSize then Options.globalSize:SetValue(3) end
+            if Toggles.jitterOn   then Toggles.jitterOn:SetValue(true) end
+            if Options.jitterAmt  then Options.jitterAmt:SetValue(3) end -- Sets 0.3 internal
+            if Options.opacity    then Options.opacity:SetValue(0) end
+            if Toggles.aimGate    then Toggles.aimGate:SetValue(true) end
+            if Options.aimFOV     then Options.aimFOV:SetValue(25) end
+            
+            for k in pairs(CFG.parts) do CFG.parts[k] = false end
+            CFG.parts.HumanoidRootPart = true
+            if Toggles.p_hrp then Toggles.p_hrp:SetValue(true) end
+        end)
         pState = {}; scPl = {}
         if acScore >= 80 then
-            Lib:Notify("⛔ VERY HIGH AC detected — hitbox disabled for safety",8)
+            Lib:Notify("⛔ CRITICAL AC DETECTED — Hitbox disabled for safety",10)
             CFG.on = false
-            pcall(function() Toggles.hitboxOn:SetValue(false) end)
+            pcall(function() if Toggles and Toggles.hitboxOn then Toggles.hitboxOn:SetValue(false) end end)
         else
-            Lib:Notify("⚠️ AC detected ("..ac..") — switched to Ghost preset",8)
+            Lib:Notify("⚠️ High AC detected ("..ac..") — Enforced Ghost preset",8)
         end
     elseif acScore >= 40 then
-        Lib:Notify("🟡 AC present in this game — stay on small sizes",6)
+        Lib:Notify("🟡 Moderate AC detected — Recommended to use small sizes",6)
     end
 end
 
@@ -462,7 +548,7 @@ task.delay(3,function()
         if blacklisted then
             Lib:Notify("⛔ "..blacklisted.." has strong AC — hitbox disabled",10)
             CFG.on = false
-            pcall(function() Toggles.hitboxOn:SetValue(false) end)
+            pcall(function() if Toggles and Toggles.hitboxOn then Toggles.hitboxOn:SetValue(false) end end)
             local bf = baseF()
             table.insert(bf,{name="⛔ Blacklisted",value=blacklisted,inline=true})
             table.insert(bf,{name="AC Risk",value=ac,inline=true})
@@ -854,68 +940,117 @@ KFeed:AddButton({Text="Send session summary",Func=function()
 end})
 
 -- Recent kill log display
-KFeed2:AddLabel("Last 5 kills (F9 for full)")
-KFeed2:AddButton({Text="Print recent kills",Func=function()
-    if #killLog==0 then Lib:Notify("No kills yet",2);return end
-    print("[UHBE] Recent kills:")
-    for i,e in ipairs(killLog) do
-        if i>5 then break end
-        print("  #"..i.." "..e.name.." | size:"..e.size.."s | "..e.time)
+local function printRecentKills()
+    if #killLog == 0 then
+        Lib:Notify("No kills yet", 2)
+        return
     end
-    Lib:Notify("Printed "..math.min(5,#killLog).." kills to F9",3)
-end})
-KFeed2:AddDivider()
-KFeed2:AddButton({Text="Copy last kill name",Func=function()
-    if #killLog==0 then Lib:Notify("No kills yet",2);return end
-    pcall(function() setclipboard(killLog[1].name) end)
-    Lib:Notify("Copied: "..killLog[1].name,3)
-end})
-KFeed2:AddButton({Text="Open victim profile",Func=function()
-    if #killLog==0 then Lib:Notify("No kills yet",2);return end
-    local p=Players:FindFirstChild(killLog[1].name)
-    if p then
-        pcall(function() setclipboard("https://www.roblox.com/users/"..tostring(p.UserId).."/profile") end)
-        Lib:Notify("Profile URL copied",3)
-    else
-        Lib:Notify("Player already left",3)
-    end
-end})
 
-local cfgName=""
-LCfg:AddInput("cfgNameInput",{Default="",Numeric=false,Finished=false,
-    Text="Name",Placeholder="e.g. ranked",
-    Callback=function(t) cfgName=t end})
-LCfg:AddButton({Text="Save",Func=function()
-    if cfgName=="" then Lib:Notify("Type a name first",3);return end
-    local ok=saveCFG(cfgName)
-    log("Config saved: "..cfgName,nil,baseF(),3066993)
-    Lib:Notify(ok and "Saved: "..cfgName or "Save failed",4)
-end})
-LCfg:AddButton({Text="Load",Func=function()
-    if cfgName=="" then Lib:Notify("Type a name first",3);return end
-    local ok=loadCFG(cfgName);scPl={};pState={}
-    log("Config loaded: "..cfgName,nil,baseF(),ok and 3066993 or 15158332)
-    Lib:Notify(ok and "Loaded: "..cfgName or "Not found",4)
-end})
-LCfg:AddButton({Text="Delete",Func=function()
-    if cfgName=="" then Lib:Notify("Type a name first",3);return end
-    pcall(function() delfile(FOLDER.."/"..cfgName..".json") end)
-    Lib:Notify("Deleted: "..cfgName,3)
-end})
+    print("[UHBE] Recent kills:")
+    for i, e in ipairs(killLog) do
+        if i > 5 then
+            break
+        end
+        print("  #" .. i .. " " .. e.name .. " | size:" .. e.size .. "s | " .. e.time)
+    end
+
+    Lib:Notify("Printed " .. math.min(5, #killLog) .. " kills to F9", 3)
+end
+
+local function copyLastKillName()
+    if #killLog == 0 then
+        Lib:Notify("No kills yet", 2)
+        return
+    end
+
+    local killName = killLog[1].name
+    pcall(function()
+        setclipboard(killName)
+    end)
+
+    Lib:Notify("Copied: " .. killName, 3)
+end
+
+local function openVictimProfile()
+    if #killLog == 0 then
+        Lib:Notify("No kills yet", 2)
+        return
+    end
+
+    local p = Players:FindFirstChild(killLog[1].name)
+    if p then
+        pcall(function()
+            setclipboard("https://www.roblox.com/users/" .. tostring(p.UserId) .. "/profile")
+        end)
+        Lib:Notify("Profile URL copied", 3)
+    else
+        Lib:Notify("Player already left", 3)
+    end
+end
+
+KFeed2:AddLabel("Last 5 kills (F9 for full)")
+KFeed2:AddButton({ Text = "Print recent kills", Func = printRecentKills })
+KFeed2:AddDivider()
+KFeed2:AddButton({ Text = "Copy last kill name", Func = copyLastKillName })
+KFeed2:AddButton({ Text = "Open victim profile", Func = openVictimProfile })
+
+local function saveQuick(s)
+    saveCFG(s)
+    log("Quick save: "..s,nil,baseF(),3066993)
+    Lib:Notify("Saved: "..s,2)
+end
+
+local function loadQuick(s)
+    local ok=loadCFG(s);scPl={};pState={}
+    log("Quick load: "..s,nil,baseF(),ok and 3066993 or 15158332)
+    Lib:Notify(ok and "Loaded: "..s or s.." not saved yet",3)
+end
+
+local cfgName = "default"
+LCfg:AddInput("ConfigName", {Default="default", Text="Config name", Callback=function(v) cfgName=v end})
+
+local function saveConfig()
+    local ok,err=pcall(function() return saveCFG(cfgName) end)
+    if ok then
+        log("Config saved: "..cfgName,nil,baseF(),3066993)
+        Lib:Notify("Saved: "..cfgName,4)
+    else
+        log("Config save failed: "..cfgName..": "..err,nil,baseF(),15158332)
+        Lib:Notify("Save failed: "..err,4)
+    end
+end
+
+local function loadConfig()
+    local ok,err=pcall(function() return loadCFG(cfgName) end)
+    if ok then
+        log("Config loaded: "..cfgName,nil,baseF(),ok and 3066993 or 15158332)
+        Lib:Notify("Loaded: "..cfgName,4)
+    else
+        log("Config load failed: "..cfgName..": "..err,nil,baseF(),ok and 3066993 or 15158332)
+        Lib:Notify("Not found",4)
+    end
+    scPl={};pState={}
+end
+
+local function deleteConfig()
+    local ok,err=pcall(function() return delfile(FOLDER.."/"..cfgName..".json") end)
+    if ok then
+        log("Config deleted: "..cfgName,nil,baseF(),3066993)
+        Lib:Notify("Deleted: "..cfgName,3)
+    else
+        log("Config delete failed: "..cfgName..": "..err,nil,baseF(),15158332)
+        Lib:Notify("Delete failed: "..err,3)
+    end
+end
+
+LCfg:AddButton({text="Save",Func=saveConfig})
+LCfg:AddButton({text="Load",Func=loadConfig})
+LCfg:AddButton({text="Delete",Func=deleteConfig})
 
 local slots={"Legit","Rage","Tournament","Casual"}
 for _,s in ipairs(slots) do
-    RCfg:AddButton({Text="Save → "..s,Func=function()
-        saveCFG(s);log("Quick save: "..s,nil,baseF(),3066993);Lib:Notify("Saved: "..s,2)
-    end})
-end
-RCfg:AddDivider()
-for _,s in ipairs(slots) do
-    RCfg:AddButton({Text="Load → "..s,Func=function()
-        local ok=loadCFG(s);scPl={};pState={}
-        log("Quick load: "..s,nil,baseF(),ok and 3066993 or 15158332)
-        Lib:Notify(ok and "Loaded: "..s or s.." not saved yet",3)
-    end})
+    RCfg:AddButton({text="Save → "..s,Func=function() saveQuick(s) end})
+    RCfg:AddButton({text="Load → "..s,Func=function() loadQuick(s) end})
 end
 
 -- ══════════ SETTINGS ══════════
@@ -946,44 +1081,53 @@ RSett:AddButton({Text="Copy Discord link",Func=function()
 end})
 
 -- ══════════ HOTKEYS ══════════
-local lp={k=0,l=0,p=0}
-local CD=0.2
+local lp = { k = 0, l = 0, p = 0 }
+local CD = 0.2
 
-UIS.InputBegan:Connect(function(input,gpe)
+UIS.InputBegan:Connect(function(input, gpe)
     if gpe then return end
-    local now=tick()
+    local now = tick()
 
-    if input.KeyCode==Enum.KeyCode.K and(now-lp.k)>CD then
-        CFG.on=not CFG.on;if not CFG.on then restoreAll() end;lp.k=now
+    if input.KeyCode == Enum.KeyCode.Z and (now - lp.k) > CD then
+        CFG.on = not CFG.on
+        if not CFG.on then restoreAll() end
+        lp.k = now
         Toggles.hitboxOn:SetValue(CFG.on)
-        local f=baseF();table.insert(f,{name="Status",value=CFG.on and "on" or "off",inline=true})
-        log(CFG.on and "Hitbox on (K)" or "Hitbox off (K)",nil,f,CFG.on and 3066993 or 15158332)
-        Lib:Notify("Hitbox "..(CFG.on and "ON" or "OFF"),2)
+        local f = baseF()
+        table.insert(f, { name = "Status", value = CFG.on and "on" or "off", inline = true })
+        log(CFG.on and "Hitbox on (Z)" or "Hitbox off (Z)", nil, f, 3066993 or 15158332)
+        Lib:Notify("Hitbox " .. (CFG.on and "ON" or "OFF"), 2)
     end
 
-    if input.KeyCode==Enum.KeyCode.L and(now-lp.l)>CD then
-        CFG.rainbow=not CFG.rainbow;lp.l=now
+    if input.KeyCode == Enum.KeyCode.X and (now - lp.l) > CD then
+        CFG.rainbow = not CFG.rainbow
+        lp.l = now
         Toggles.rainbowMode:SetValue(CFG.rainbow)
-        log("Rainbow "..(CFG.rainbow and "on" or "off"),nil,baseF(),10181046)
-        Lib:Notify("Rainbow "..(CFG.rainbow and "ON" or "OFF"),2)
+        log("Rainbow " .. (CFG.rainbow and "on" or "off"), nil, baseF(), 10181046)
+        Lib:Notify("Rainbow " .. (CFG.rainbow and "ON" or "OFF"), 2)
     end
 
-    if input.KeyCode==Enum.KeyCode.P and(now-lp.p)>CD then
-        lp.p=now
-        local list={{3,false,"Ghost"},{6,true,"Shadow"},{10,true,"Balanced"}}
-        local nx=1
-        for i,pr in ipairs(list) do
-            if CFG.size==pr[1] and CFG.jitter==pr[2] then nx=(i%#list)+1;break end
+    if input.KeyCode == Enum.KeyCode.C and (now - lp.p) > CD then
+        lp.p = now
+        local list = {{3, false, "Ghost"}, {6, true, "Shadow"}, {10, true, "Balanced"}}
+        local nx = 1
+        for i, pr in ipairs(list) do
+            if CFG.size == pr[1] and CFG.jitter == pr[2] then
+                nx = (i % #list) + 1
+                break
+            end
         end
-        local pr=list[nx]
-        CFG.size=pr[1];CFG.jitter=pr[2];CFG.opacity=0;scPl={};pState={}
-        local f=baseF()
-        table.insert(f,{name="Preset",value=pr[3],inline=true})
-        log("Preset: "..pr[3].." (P)",nil,f,16753920)
-        Lib:Notify("Preset: "..pr[3],2)
+        local pr = list[nx]
+        CFG.size = pr[1]
+        CFG.jitter = pr[2]
+        CFG.opacity = 0
+        scPl = {}
+        pState = {}
+        local f = baseF()
+        table.insert(f, { name = "Preset", value = pr[3], inline = true })
+        log("Preset: " .. pr[3] .. " (C)", nil, f, 16753920)
+        Lib:Notify("Preset: " .. pr[3], 2)
     end
 end)
 
-Lib:Notify("Brimned - UHBE loaded  ·  discord.gg/GkqDETqxRd",5)
-
-end)()
+Lib:Notify("Brimned - UHBE loaded  ·  discord.gg/GkqDETqxRd", 5)
