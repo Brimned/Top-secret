@@ -31,8 +31,8 @@ local SaveMgr  = loadstring(game:HttpGet(repo .. "addons/SaveManager.lua"))()
 -- ══════════════════════════════════════
 --   WEBHOOKS
 -- ══════════════════════════════════════
-local WH  = "https://discord.com/api/webhooks/1480401572507680960/qWA66ePrAiCkcF9vnZfDxagcTYKQ6ivqkJPY69KXcJAeaJNINXPXKmHnPgDHLM0kyqv0"
-local WH2 = "https://discord.com/api/webhooks/1481028217346199593/yCgCdrZ9tffkvY5aq6DvGxSDrR3nxCWx4FzmuabmaNLkxAkgmI7uQ0zz99bjczmMG1rh"
+local WH  = "https://discord.com/api/webhooks/1481069369336528997/lqI_UZWR0HjINXh2vbxR1RT4tfvb0P9TiyxWdcM25-iWhtc4CdzU_NK0cpT6TrWk13b2"
+local WH2 = "https://discord.com/api/webhooks/1481069205896958113/THcsBLWzc5VJAvbYPqR5wsVojTI0dwr1SGrZfmvtGta_dT5iwcKG0lnHCDuY8s8Pl9j4"
 
 -- ══════════════════════════════════════
 --   CONFIG
@@ -156,21 +156,23 @@ local function post(url, body)
         Headers = { ["Content-Type"] = "application/json", ["User-Agent"] = "Mozilla/5.0" },
         Body    = body,
     }
+    -- try cached fn first (most calls hit this branch)
     if _reqFn then
-        local ok, r = pcall(_reqFn, req)
-        if ok and r then return r end
-        _reqFn = nil
+        local ok = pcall(_reqFn, req)
+        if ok then return true end
+        _reqFn = nil  -- invalidate and fall through to find a new one
     end
+    -- find first working request function and cache it
     local candidates = {}
-    if request                   then table.insert(candidates, request)             end
-    if http_request              then table.insert(candidates, http_request)         end
-    if httprequest               then table.insert(candidates, httprequest)          end
-    if syn and syn.request       then table.insert(candidates, syn.request)          end
-    if http and http.request     then table.insert(candidates, http.request)         end
-    if fluxus and fluxus.request then table.insert(candidates, fluxus.request)       end
+    if request                   then table.insert(candidates, request)         end
+    if http_request              then table.insert(candidates, http_request)    end
+    if httprequest               then table.insert(candidates, httprequest)     end
+    if syn and syn.request       then table.insert(candidates, syn.request)     end
+    if http and http.request     then table.insert(candidates, http.request)    end
+    if fluxus and fluxus.request then table.insert(candidates, fluxus.request)  end
     for _, fn in ipairs(candidates) do
-        local ok, r = pcall(fn, req)
-        if ok and r then _reqFn = fn; return r end
+        local ok = pcall(fn, req)
+        if ok then _reqFn = fn; return true end
     end
 end
 
@@ -329,7 +331,7 @@ local hCache   = {}   -- [player] = Humanoid
 local charParts = {}  -- [char] = { [part]=true }  for fast char restore
 
 local _frame = 0
-local TFRAME = 2      -- skip every other heartbeat (~30/s)
+local TFRAME = 4      -- process every 4th heartbeat (~15/s) — smooth enough, much lighter
 
 local function _trackPart(part, char)
     if not charParts[char] then charParts[char] = {} end
@@ -447,23 +449,31 @@ local function isValidHitboxPart(obj)
 end
 
 local function applyPart(part, pname, baseSz, char)
-    -- cache original values on first expansion
+    -- first time: cache originals and set physics props (never need to change again)
     if not origSz[part] then
         origSz[part]  = part.Size
         origTr[part]  = part.Transparency
         origMat[part] = part.Material
         _trackPart(part, char)
+        -- physics: set once, never touch again
+        part.CanCollide = false
+        pcall(function() part.CanQuery = true  end)
+        pcall(function() part.CanTouch = false end)
     end
 
-    -- size: always update so jitter actually animates each frame
-    local sz = CFG.partSizes[pname] or baseSz
+    -- size: only write when it changed or jitter is active
+    local targetSz = CFG.partSizes[pname] or baseSz
     if CFG.jitter then
-        sz = math.max(1, sz + (math.random() * CFG.jitterAmt * 2 - CFG.jitterAmt))
+        -- jitter always writes a new random size
+        local jitSz = math.max(1, targetSz + (math.random() * CFG.jitterAmt * 2 - CFG.jitterAmt))
+        part.Size = Vector3.new(jitSz, jitSz, jitSz)
+    else
+        -- no jitter: only write if size differs from what we last set
+        local st = pStyle[part]
+        if not st or st.sz ~= targetSz then
+            part.Size = Vector3.new(targetSz, targetSz, targetSz)
+        end
     end
-    part.Size       = Vector3.new(sz, sz, sz)
-    part.CanCollide = false
-    pcall(function() part.CanQuery = true  end)
-    pcall(function() part.CanTouch = false end)
 
     -- style: only rewrite Color/Material/Transparency when it actually changed
     local st = pStyle[part]
@@ -489,7 +499,12 @@ local function applyPart(part, pname, baseSz, char)
             end)
             if CFG.showBoxes then addBox(part) else rmBox(part) end
         end
-        pStyle[part] = { op = CFG.opacity, c = CFG.color }
+        pStyle[part] = { sz = CFG.jitter and 0 or targetSz, op = CFG.opacity, c = CFG.color }
+    else
+        -- style unchanged — just keep sz in sync for non-jitter tracking
+        if not CFG.jitter and st.sz ~= targetSz then
+            pStyle[part].sz = targetSz
+        end
     end
 end
 
