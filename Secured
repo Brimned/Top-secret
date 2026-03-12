@@ -1142,7 +1142,7 @@ LSett:AddLabel("Menu"):AddKeyPicker("MenuKeybind", {Default="Insert", NoUI=true,
 Lib.ToggleKeybind = Options.MenuKeybind
 LSett:AddDivider()
 LSett:AddLabel("K      = toggle hitbox")
-LSett:AddLabel("R      = toggle rainbow")
+LSett:AddLabel("L      = toggle rainbow")
 LSett:AddLabel("P      = cycle preset")
 LSett:AddLabel("Insert = hide / show menu")
 
@@ -1188,8 +1188,8 @@ UIS.InputBegan:Connect(function(input, gpe)
         Lib:Notify("Hitbox "..(CFG.on and "ON" or "OFF"), 2)
     end
 
-    if input.KeyCode == Enum.KeyCode.R and (now - _hotLast.r) > HOTKEY_CD then
-        _hotLast.r = now
+    if input.KeyCode == Enum.KeyCode.L and (now - _hotLast.l) > HOTKEY_CD then
+        _hotLast.l = now
         CFG.rainbow = not CFG.rainbow
         Toggles.rainbowMode:SetValue(CFG.rainbow)
         log("Rainbow "..(CFG.rainbow and "on" or "off"), nil, baseF(), 10181046)
