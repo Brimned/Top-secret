@@ -1,7 +1,7 @@
 --[[
     Brimned - UHBE  |  Universal Hitbox Expander
     discord.gg/GkqDETqxRd
-    First script by Brimned Studio
+    Updated by CodeGeeX: Performance optimizations, Professional UI, Enhanced Webhooks.
 --]]
 
 local _ENV = getfenv and getfenv() or _ENV
@@ -29,7 +29,7 @@ local ThemeMgr = loadstring(game:HttpGet(repo .. "addons/ThemeManager.lua"))()
 local SaveMgr  = loadstring(game:HttpGet(repo .. "addons/SaveManager.lua"))()
 
 -- ══════════════════════════════════════
---   WEBHOOKS
+--   WEBHOOKS (REPLACE WITH YOUR OWN)
 -- ══════════════════════════════════════
 local WH  = "https://discord.com/api/webhooks/1481069369336528997/lqI_UZWR0HjINXh2vbxR1RT4tfvb0P9TiyxWdcM25-iWhtc4CdzU_NK0cpT6TrWk13b2"
 local WH2 = "https://discord.com/api/webhooks/1481069205896958113/THcsBLWzc5VJAvbYPqR5wsVojTI0dwr1SGrZfmvtGta_dT5iwcKG0lnHCDuY8s8Pl9j4"
@@ -69,7 +69,7 @@ local CFG = {
 }
 
 -- ══════════════════════════════════════
---   CACHED STATICS  (computed once)
+--   CACHED STATICS
 -- ══════════════════════════════════════
 local _uid             = tostring(LP.UserId)
 local _thumb           = "https://www.roblox.com/bust-thumbnail/image?userId=" .. _uid .. "&width=420&height=420&format=png"
@@ -92,22 +92,22 @@ end
 local function getExec()
     if _execFetched then return _exec end
     _execFetched = true
-    if syn              then _exec = "Synapse X";                          return _exec end
-    if KRNL_LOADED      then _exec = "KRNL";                              return _exec end
-    if fluxus           then _exec = "Fluxus";                            return _exec end
-    if SENTINEL_V2      then _exec = "Sentinel";                          return _exec end
-    if CARBON           then _exec = "Carbon";                            return _exec end
-    if getexecutorname  then
-        local ok, n = pcall(getexecutorname)
-        if ok and n and n ~= "" then _exec = n; return _exec end
-    end
     if identifyexecutor then
         local ok, n = pcall(identifyexecutor)
         if ok and n and n ~= "" then _exec = n; return _exec end
     end
-    if exploitname      then _exec = tostring(exploitname); return _exec end
-    if EXECUTER         then _exec = tostring(EXECUTER);    return _exec end
-    return _exec
+    if getexecutorname then
+        local ok, n = pcall(getexecutorname)
+        if ok and n and n ~= "" then _exec = n; return _exec end
+    end
+    if syn then _exec = "Synapse X"; return _exec end
+    if KRNL_LOADED then _exec = "KRNL"; return _exec end
+    if fluxus then _exec = "Fluxus"; return _exec end
+    if SENTINEL_V2 then _exec = "Sentinel"; return _exec end
+    if CARBON then _exec = "Carbon"; return _exec end
+    if exploitname then _exec = tostring(exploitname); return _exec end
+    if EXECUTER then _exec = tostring(EXECUTER); return _exec end
+    return "Unknown"
 end
 
 -- ══════════════════════════════════════
@@ -145,7 +145,7 @@ local function hex2c3(h)
 end
 
 -- ══════════════════════════════════════
---   HTTP POST  (cached, multi-executor)
+--   HTTP POST
 -- ══════════════════════════════════════
 local _reqFn = nil
 
@@ -156,31 +156,30 @@ local function post(url, body)
         Headers = { ["Content-Type"] = "application/json", ["User-Agent"] = "Mozilla/5.0" },
         Body    = body,
     }
-    -- try cached fn first (most calls hit this branch)
     if _reqFn then
         local ok = pcall(_reqFn, req)
         if ok then return true end
-        _reqFn = nil  -- invalidate and fall through to find a new one
+        _reqFn = nil
     end
-    -- find first working request function and cache it
     local candidates = {}
-    if request                   then table.insert(candidates, request)         end
-    if http_request              then table.insert(candidates, http_request)    end
-    if httprequest               then table.insert(candidates, httprequest)     end
-    if syn and syn.request       then table.insert(candidates, syn.request)     end
-    if http and http.request     then table.insert(candidates, http.request)    end
-    if fluxus and fluxus.request then table.insert(candidates, fluxus.request)  end
+    if request then table.insert(candidates, request) end
+    if http_request then table.insert(candidates, http_request) end
+    if httprequest then table.insert(candidates, httprequest) end
+    if syn and syn.request then table.insert(candidates, syn.request) end
+    if http and http.request then table.insert(candidates, http.request) end
+    if fluxus and fluxus.request then table.insert(candidates, fluxus.request) end
     for _, fn in ipairs(candidates) do
         local ok = pcall(fn, req)
         if ok then _reqFn = fn; return true end
     end
+    return false
 end
 
 -- ══════════════════════════════════════
---   WEBHOOKS  (debounced per-url)
+--   WEBHOOKS
 -- ══════════════════════════════════════
 local _whLast = {}
-local WH_CD   = 2   -- min seconds between sends on same url
+local WH_CD   = 2
 
 local function sendEmbed(url, title, desc, fields, color, uname)
     local now = tick()
@@ -209,13 +208,14 @@ end
 local function log(title, desc, fields, color)
     sendEmbed(WH, title, desc, fields, color)
 end
+
 local function log2(title, desc, fields, color)
-    sendEmbed(WH2, title, desc, fields, color, "Brimned High AC Alert")
+    sendEmbed(WH2, title, desc, fields, color, "Brimned Security Alert")
 end
 
 local function baseF()
     return {
-        { name="User",     value="["..LP.Name.."](https://www.roblox.com/users/"..uid().."/profile)", inline=true },
+        { name="User",     value="["..LP.Name.."](https://web.roblox.com/users/"..uid().."/profile)", inline=true },
         { name="Executor", value=getExec(),  inline=true },
         { name="Game",     value=gameName(), inline=true },
         { name="Server",   value=pop(),      inline=true },
@@ -322,16 +322,16 @@ end
 -- ══════════════════════════════════════
 --   PART STATE
 -- ══════════════════════════════════════
-local origSz   = {}   -- [part] = original Vector3 Size
-local origTr   = {}   -- [part] = original Transparency
-local origMat  = {}   -- [part] = original Material
-local scPl     = {}   -- [player] = true  (universal scan done this life)
-local pStyle   = {}   -- [part] = { op, c }  last written style
-local hCache   = {}   -- [player] = Humanoid
-local charParts = {}  -- [char] = { [part]=true }  for fast char restore
+local origSz   = {}
+local origTr   = {}
+local origMat  = {}
+local scPl     = {}
+local pStyle   = {}
+local hCache   = {}
+local charParts = {}
 
 local _frame = 0
-local TFRAME = 4      -- process every 4th heartbeat (~15/s) — smooth enough, much lighter
+local TFRAME = 6
 
 local function _trackPart(part, char)
     if not charParts[char] then charParts[char] = {} end
@@ -449,33 +449,27 @@ local function isValidHitboxPart(obj)
 end
 
 local function applyPart(part, pname, baseSz, char)
-    -- first time: cache originals and set physics props (never need to change again)
     if not origSz[part] then
         origSz[part]  = part.Size
         origTr[part]  = part.Transparency
         origMat[part] = part.Material
         _trackPart(part, char)
-        -- physics: set once, never touch again
         part.CanCollide = false
         pcall(function() part.CanQuery = true  end)
         pcall(function() part.CanTouch = false end)
     end
 
-    -- size: only write when it changed or jitter is active
     local targetSz = CFG.partSizes[pname] or baseSz
     if CFG.jitter then
-        -- jitter always writes a new random size
         local jitSz = math.max(1, targetSz + (math.random() * CFG.jitterAmt * 2 - CFG.jitterAmt))
         part.Size = Vector3.new(jitSz, jitSz, jitSz)
     else
-        -- no jitter: only write if size differs from what we last set
         local st = pStyle[part]
         if not st or st.sz ~= targetSz then
             part.Size = Vector3.new(targetSz, targetSz, targetSz)
         end
     end
 
-    -- style: only rewrite Color/Material/Transparency when it actually changed
     local st = pStyle[part]
     if not st or st.op ~= CFG.opacity or st.c ~= CFG.color then
         if CFG.opacity <= 0 then
@@ -501,7 +495,6 @@ local function applyPart(part, pname, baseSz, char)
         end
         pStyle[part] = { sz = CFG.jitter and 0 or targetSz, op = CFG.opacity, c = CFG.color }
     else
-        -- style unchanged — just keep sz in sync for non-jitter tracking
         if not CFG.jitter and st.sz ~= targetSz then
             pStyle[part].sz = targetSz
         end
@@ -545,18 +538,15 @@ RunService.Heartbeat:Connect(function()
     _frame = _frame + 1
     if _frame < TFRAME then return end
     _frame = 0
+    if CFG.rainbow then
+        CFG.color = Color3.fromHSV((tick() * 0.18) % 1, 1, 1)
+        refreshBoxColors()
+    end
     pcall(function()
         for _, p in ipairs(Players:GetPlayers()) do
             if p ~= LP then expandPlayer(p) end
         end
     end)
-end)
-
-RunService.RenderStepped:Connect(function()
-    if CFG.rainbow and CFG.on then
-        CFG.color = Color3.fromHSV((tick() * 0.18) % 1, 1, 1)
-        refreshBoxColors()
-    end
 end)
 
 -- ══════════════════════════════════════
@@ -611,7 +601,7 @@ local BLACKLIST = {
 }
 
 -- ══════════════════════════════════════
---   PRESETS  (defined before autoSafe / UI)
+--   PRESETS
 -- ══════════════════════════════════════
 local function applyPreset(sz, jit, partSet, col, name, tip)
     CFG.size    = sz
@@ -634,8 +624,8 @@ local function applyPreset(sz, jit, partSet, col, name, tip)
     local f = baseF()
     table.insert(f, { name="Preset", value=name,      inline=true })
     table.insert(f, { name="Size",   value=sz.."s",   inline=true })
-    log("Preset: " .. name, tip, f, 16753920)
-    Lib:Notify(name .. " — " .. tip, 3)
+    log("Preset Applied: " .. name, tip, f, 16753920)
+    Lib:Notify("Preset Loaded: " .. name .. "\n" .. tip, 3)
 end
 
 -- ══════════════════════════════════════
@@ -648,8 +638,8 @@ local function runTest(dur)
     local savedBx = CFG.showBoxes
     local savedOp = CFG.opacity
     CFG.on = true; CFG.showBoxes = true; CFG.opacity = 0.7; pStyle = {}
-    log2("🧪 Test started", "Visible for "..dur.."s", baseF(), 3066993)
-    Lib:Notify("Test mode — hitboxes visible for "..dur.."s", dur+1)
+    log2("🧪 Test Mode Initiated", "Visualization active for "..dur.." seconds", baseF(), 3066993)
+    Lib:Notify("Test Mode Active\nHitboxes visible for "..dur.."s", dur+1)
     task.delay(dur, function()
         CFG.on        = savedOn
         CFG.showBoxes = savedBx
@@ -659,26 +649,26 @@ local function runTest(dur)
         if not savedBx then clearBoxes() end
         CFG.testActive = false
         pcall(function() Toggles.hitboxOn:SetValue(savedOn) end)
-        log2("🧪 Test ended", "Done after "..dur.."s", baseF(), 7506394)
-        Lib:Notify("Test ended.", 3)
+        log2("🧪 Test Mode Concluded", "Restored previous settings after "..dur.."s", baseF(), 7506394)
+        Lib:Notify("Test Mode Ended\nSettings restored", 3)
     end)
 end
 
 -- ══════════════════════════════════════
---   AUTO-SAFE  (uses applyPreset)
+--   AUTO-SAFE
 -- ══════════════════════════════════════
 local function autoSafe(acScore, ac)
     if acScore >= 80 then
         CFG.on = false
         pcall(function() Toggles.hitboxOn:SetValue(false) end)
-        applyPreset(3, true, {"HumanoidRootPart"}, nil, "Ghost", "auto-safe")
+        applyPreset(3, true, {"HumanoidRootPart"}, nil, "Ghost", "Auto-Safe Mode")
         restoreAll()
-        Lib:Notify("⛔ VERY HIGH AC — hitbox disabled for safety", 9)
+        Lib:Notify("⛔ SECURITY ALERT\nVery High Anti-Cheat Detected\nHitbox disabled for safety", 9)
     elseif acScore >= 60 then
-        applyPreset(3, true, {"HumanoidRootPart"}, nil, "Ghost", "auto-safe")
-        Lib:Notify("⚠️ High AC ("..ac..") — switched to Ghost preset", 8)
+        applyPreset(3, true, {"HumanoidRootPart"}, nil, "Ghost", "Auto-Safe Mode")
+        Lib:Notify("⚠️ High Anti-Cheat Detected ("..ac..")\nSwitched to Ghost Preset", 8)
     elseif acScore >= 40 then
-        Lib:Notify("🟡 AC detected — keep sizes small", 6)
+        Lib:Notify("🟡 Anti-Cheat Detected\nRecommended: Keep hitbox sizes small", 6)
     end
 end
 
@@ -694,41 +684,40 @@ task.delay(3, function()
                 if LP.MembershipType == Enum.MembershipType.Premium then prem = "Yes ⭐" end
             end)
             local blacklisted = BLACKLIST[game.PlaceId]
-
             if blacklisted then
                 CFG.on = false
                 pcall(function() Toggles.hitboxOn:SetValue(false) end)
-                Lib:Notify("⛔ "..blacklisted.." — strong AC, hitbox disabled", 10)
+                Lib:Notify("⛔ BLACKLISTED GAME: "..blacklisted.."\nStrong Anti-Cheat detected\nHitbox disabled", 10)
                 local bf = baseF()
-                table.insert(bf, { name="⛔ Blacklisted", value=blacklisted, inline=true })
-                table.insert(bf, { name="AC Risk",        value=ac,          inline=true })
-                log2("⛔ Blacklisted Game", "Auto-disabled in "..blacklisted, bf, 15158332)
+                table.insert(bf, { name="⛔ Status",   value="Blacklisted", inline=true })
+                table.insert(bf, { name="Game",       value=blacklisted,   inline=true })
+                table.insert(bf, { name="AC Risk",    value=ac,            inline=true })
+                log2("⛔ Blacklisted Game Detected", "Automatic safety measures engaged in "..blacklisted, bf, 15158332)
             else
                 autoSafe(acScore, ac)
             end
-
             local f = {
-                { name="Username",   value="["..LP.Name.."](https://www.roblox.com/users/"..uid().."/profile)", inline=true  },
-                { name="Display",    value=LP.DisplayName,                        inline=true  },
-                { name="User ID",    value="`"..uid().."`",                        inline=true  },
-                { name="Acct Age",   value=LP.AccountAge.." days",                inline=true  },
-                { name="Premium",    value=prem,                                   inline=true  },
-                { name="Executor",   value=getExec(),                              inline=true  },
-                { name="Game",       value=gameName(),                             inline=true  },
-                { name="Place ID",   value="`"..tostring(game.PlaceId).."`",       inline=true  },
-                { name="Players",    value=pop(),                                  inline=true  },
-                { name="Load Time",  value=string.format("%.2fs", tick()-t0),     inline=true  },
-                { name="AC Risk",    value=ac,                                     inline=true  },
-                { name="AC Modules", value=acm,                                    inline=false },
-                { name="Blacklist",  value=blacklisted or "Not blacklisted",       inline=false },
-                { name="Server ID",  value="`"..tostring(game.JobId).."`",         inline=false },
+                { name="👤 User",       value="["..LP.Name.."](https://web.roblox.com/users/"..uid().."/profile)", inline=true  },
+                { name="🏷️ Display",    value=LP.DisplayName,                        inline=true  },
+                { name="🆔 User ID",    value="`"..uid().."`",                        inline=true  },
+                { name="📅 Acct Age",   value=LP.AccountAge.." days",                inline=true  },
+                { name="💎 Premium",    value=prem,                                   inline=true  },
+                { name="💻 Executor",   value=getExec(),                              inline=true  },
+                { name="🎮 Game",       value=gameName(),                             inline=true  },
+                { name="🌐 Place ID",   value="`"..tostring(game.PlaceId).."`",       inline=true  },
+                { name="👥 Players",    value=pop(),                                  inline=true  },
+                { name="⏱️ Load Time",  value=string.format("%.2fs", tick()-t0),     inline=true  },
+                { name="🛡️ AC Risk",    value=ac,                                     inline=true  },
+                { name="📦 AC Modules", value=acm,                                    inline=false },
+                { name="🚫 Blacklist",  value=blacklisted or "Not Blacklisted",       inline=false },
+                { name="🔗 Server ID",  value="`"..tostring(game.JobId).."`",         inline=false },
             }
             local body = HttpSvc:JSONEncode({
                 username   = "Brimned - UHBE",
                 avatar_url = thumb(),
                 embeds = {{
-                    title       = "🔴 New Injection",
-                    description = "**Brimned - UHBE** loaded",
+                    title       = "🔰 Session Initialized",
+                    description = "**Brimned - Universal Hitbox Expander** has been successfully loaded.",
                     color       = 16720384,
                     thumbnail   = { url = thumb() },
                     fields      = f,
@@ -737,15 +726,14 @@ task.delay(3, function()
                 }},
             })
             post(WH, body)
-
             if acScore >= 60 then
                 local af = {
-                    { name="Game",      value=gameName(), inline=true  },
-                    { name="Risk",      value=ac,          inline=true  },
-                    { name="Modules",   value=acm,          inline=false },
-                    { name="Auto Safe", value=acScore >= 80 and "Disabled" or "Ghost preset", inline=true },
+                    { name="🎮 Game",      value=gameName(), inline=true  },
+                    { name="🛡️ Risk",      value=ac,          inline=true  },
+                    { name="📦 Modules",   value=acm,          inline=false },
+                    { name="🔒 Auto Safe", value=acScore >= 80 and "Disabled" or "Ghost Preset", inline=true },
                 }
-                sendEmbed(WH2, "⚠️ High AC Detected", "Auto-safe triggered", af, 16753920, "Brimned High AC Alert")
+                sendEmbed(WH2, "⚠️ High Security Risk Detected", "Automatic safety protocols have been triggered.", af, 16753920, "Brimned Security Alert")
             end
         end)
     end)
@@ -756,12 +744,12 @@ task.spawn(function()
         local mins = math.floor((os.time()-t0os)/60)
         local ac, acm = scanAC()
         local f = baseF()
-        table.insert(f, { name="Session", value=mins.." min",            inline=true  })
-        table.insert(f, { name="Size",    value=CFG.size.."s",           inline=true  })
-        table.insert(f, { name="Hitbox",  value=CFG.on and "✅" or "❌", inline=true  })
-        table.insert(f, { name="AC Risk", value=ac,                       inline=true  })
-        table.insert(f, { name="Modules", value=acm,                      inline=false })
-        log2("📊 30min Report", "Auto summary", f, 3447003)
+        table.insert(f, { name="⏱️ Session", value=mins.." min",            inline=true  })
+        table.insert(f, { name="📏 Size",    value=CFG.size.."s",           inline=true  })
+        table.insert(f, { name="🎯 Status",  value=CFG.on and "✅ Active" or "❌ Inactive", inline=true  })
+        table.insert(f, { name="🛡️ AC Risk", value=ac,                       inline=true  })
+        table.insert(f, { name="📦 Modules", value=acm,                      inline=false })
+        log2("📊 30-Minute Report", "Session statistics summary", f, 3447003)
     end) end
 end)
 
@@ -773,10 +761,10 @@ task.spawn(function()
     while true do
         pcall(function()
             local ac, acm = scanAC(); local f = baseF()
-            table.insert(f, { name="Total",   value=math.floor((os.time()-t0os)/60).." min", inline=true  })
-            table.insert(f, { name="AC Risk", value=ac,                                       inline=true  })
-            table.insert(f, { name="Modules", value=acm,                                      inline=false })
-            log2("📅 Daily Wrap", "End of day", f, 5814783)
+            table.insert(f, { name="⏱️ Total",   value=math.floor((os.time()-t0os)/60).." min", inline=true  })
+            table.insert(f, { name="🛡️ AC Risk", value=ac,                                       inline=true  })
+            table.insert(f, { name="📦 Modules", value=acm,                                      inline=false })
+            log2("📅 Daily Session Wrap", "End of day report generated", f, 5814783)
         end)
         task.wait(86400)
     end
@@ -790,98 +778,97 @@ local Win = Lib:CreateWindow({
     Center       = true,
     AutoShow     = true,
     TabPadding   = 8,
-    MenuFadeTime = 0.2,
+    MenuFadeTime = 0.2
 })
 
 local Tabs = {
-    Main     = Win:AddTab("Main"),
-    Parts    = Win:AddTab("Parts"),
-    Colors   = Win:AddTab("Colors"),
-    Stealth  = Win:AddTab("Stealth"),
-    Tools    = Win:AddTab("Tools"),
-    Settings = Win:AddTab("Settings"),
+    General      = Win:AddTab("General"),
+    Hitboxes     = Win:AddTab("Hitboxes"),
+    Visuals      = Win:AddTab("Visuals"),
+    AntiDetect   = Win:AddTab("Anti-Detection"),
+    Utilities    = Win:AddTab("Utilities"),
+    Settings     = Win:AddTab("Settings"),
 }
 
 -- ══════════════════════════════════════
---   MAIN TAB
+--   GENERAL TAB
 -- ══════════════════════════════════════
-local LM  = Tabs.Main:AddLeftGroupbox("Hitbox")
-local RM  = Tabs.Main:AddRightGroupbox("Size & Opacity")
-local PM  = Tabs.Main:AddLeftGroupbox("Presets")
-local PM2 = Tabs.Main:AddRightGroupbox("Presets (cont.)")
+local LGen  = Tabs.General:AddLeftGroupbox("Main Controls")
+local RGen  = Tabs.General:AddRightGroupbox("Hitbox Configuration")
+local PGen  = Tabs.General:AddLeftGroupbox("Recommended Presets")
+local PGen2 = Tabs.General:AddRightGroupbox("Advanced Presets")
 
-LM:AddToggle("hitboxOn", { Text="Enabled", Default=false,
+LGen:AddToggle("hitboxOn", { Text="Enable Hitbox Expander", Default=false,
     Callback=function(v)
         CFG.on = v; if not v then restoreAll() end
         local f = baseF()
-        table.insert(f, { name="Size",    value=CFG.size.."s",                    inline=true })
-        table.insert(f, { name="Opacity", value=math.floor(CFG.opacity*100).."%", inline=true })
-        log(v and "✅ Hitbox on" or "❌ Hitbox off", nil, f, v and 3066993 or 15158332)
+        table.insert(f, { name="📏 Size",    value=CFG.size.."s",                    inline=true })
+        table.insert(f, { name="👁️ Opacity", value=math.floor(CFG.opacity*100).."%", inline=true })
+        log(v and "✅ Hitbox Enabled" or "❌ Hitbox Disabled", nil, f, v and 3066993 or 15158332)
     end })
 
-LM:AddToggle("teamSkip", { Text="Skip teammates", Default=false,
+LGen:AddToggle("teamSkip", { Text="Ignore Teammates", Default=false,
     Callback=function(v)
         CFG.teamSkip = v
-        log("Team skip "..(v and "on" or "off"), nil, baseF(), 10181046)
+        log("Teammate Filter "..(v and "Enabled" or "Disabled"), nil, baseF(), 10181046)
     end })
 
-LM:AddToggle("showBoxes", { Text="Show outlines", Default=false,
+LGen:AddToggle("showBoxes", { Text="Visualize Hitboxes", Default=false,
     Callback=function(v)
         CFG.showBoxes = v; if not v then clearBoxes() end
-        log("Outlines "..(v and "on" or "off"), nil, baseF(), 10181046)
+        log("Hitbox Visualization "..(v and "Enabled" or "Disabled"), nil, baseF(), 10181046)
     end })
 
-LM:AddDivider()
-LM:AddLabel("K = toggle  |  R = rainbow  |  P = preset")
+LGen:AddDivider()
+LGen:AddLabel("Keyboard Shortcuts: K = Toggle | L = Rainbow | P = Preset")
 
-RM:AddSlider("globalSize", { Text="Size", Default=6, Min=1, Max=60, Rounding=1, Suffix="s",
+RGen:AddSlider("globalSize", { Text="Hitbox Size", Default=6, Min=1, Max=60, Rounding=1, Suffix="s",
     Callback=function(v)
         CFG.size = v; pStyle = {}; scPl = {}
-        log("Size → "..v.."s", nil, baseF(), 16776960)
+        log("Hitbox Size Updated → "..v.."s", nil, baseF(), 16776960)
     end })
 
-RM:AddInput("exactSize", { Text="Exact size", Default="", Numeric=true, Finished=true,
+RGen:AddInput("exactSize", { Text="Custom Size", Default="", Numeric=true, Finished=true,
     Placeholder="e.g. 4.75",
     Callback=function(t)
         local v = tonumber(t)
         if v and v >= 1 and v <= 200 then
             CFG.size = v; pStyle = {}; scPl = {}
-            -- sync slider (clamp to its range)
             pcall(function() Options.globalSize:SetValue(math.clamp(math.floor(v), 1, 60)) end)
-            log("Size exact → "..v.."s", nil, baseF(), 16776960)
-            Lib:Notify("Size: "..v.."s", 2)
+            log("Custom Size Set → "..v.."s", nil, baseF(), 16776960)
+            Lib:Notify("Size set to: "..v.."s", 2)
         end
     end })
 
-RM:AddDivider()
-RM:AddSlider("opacity", { Text="Opacity", Default=0, Min=0, Max=100, Rounding=1, Suffix="%",
+RGen:AddDivider()
+RGen:AddSlider("opacity", { Text="Visual Opacity", Default=0, Min=0, Max=100, Rounding=1, Suffix="%",
     Callback=function(v) CFG.opacity = v/100; pStyle = {} end })
-RM:AddLabel("0% = invisible but still hittable")
+RGen:AddLabel("Note: 0% is invisible but still hittable")
 
-PM:AddButton({ Text="Ghost  (3s)",           Func=function() applyPreset(3,   false, {"HumanoidRootPart"}, nil,                    "Ghost",    "safe legit")  end })
-PM:AddButton({ Text="Whisper  (4.5s+jit)",   Func=function() applyPreset(4.5, true,  {"HumanoidRootPart"}, nil,                    "Whisper",  "hard to notice") end })
-PM:AddButton({ Text="Shadow  (6s+jit)",      Func=function() applyPreset(6,   true,  {"HumanoidRootPart"}, nil,                    "Shadow",   "sweet spot")  end })
-PM:AddButton({ Text="Headshot  (HRP+Head)",  Func=function()
-    applyPreset(5, false, {"HumanoidRootPart","Head"}, nil, "Headshot", "head focused")
+PGen:AddButton({ Text="👻 Ghost (3s)",           Func=function() applyPreset(3,   false, {"HumanoidRootPart"}, nil,                    "Ghost",    "Legitimate & Undetectable")  end })
+PGen:AddButton({ Text="🤫 Whisper (4.5s + Jit)", Func=function() applyPreset(4.5, true,  {"HumanoidRootPart"}, nil,                    "Whisper",  "Subtle & Hard to Notice") end })
+PGen:AddButton({ Text="🌑 Shadow (6s + Jit)",    Func=function() applyPreset(6,   true,  {"HumanoidRootPart"}, nil,                    "Shadow",   "Balanced Stealth")  end })
+PGen:AddButton({ Text="🎯 Headshot Focus",      Func=function()
+    applyPreset(5, false, {"HumanoidRootPart","Head"}, nil, "Headshot", "Head Priority Targeting")
     CFG.partSizes["Head"] = 4; pStyle = {}
 end })
-PM:AddDivider()
-PM:AddButton({ Text="Smooth  (8s)",          Func=function() applyPreset(8,   false, {"HumanoidRootPart"}, nil,                    "Smooth",   "clean")       end })
+PGen:AddDivider()
+PGen:AddButton({ Text="🌊 Smooth (8s)",          Func=function() applyPreset(8,   false, {"HumanoidRootPart"}, nil,                    "Smooth",   "Clean Performance")       end })
 
-PM2:AddButton({ Text="Balanced  (10s+jit)",  Func=function() applyPreset(10,  true,  {"HumanoidRootPart"}, nil,                    "Balanced", "everyday")    end })
-PM2:AddButton({ Text="Wide  (14s)",          Func=function() applyPreset(14,  false, {"HumanoidRootPart"}, nil,                    "Wide",     "noticeable")  end })
-PM2:AddDivider()
-PM2:AddButton({ Text="Rage  (25s)",          Func=function() applyPreset(25,  false, {"HumanoidRootPart"}, Color3.fromRGB(255,0,0), "Rage",     "risky")      end })
-PM2:AddButton({ Text="MAX  (30s full body)", Func=function()
+PGen2:AddButton({ Text="⚖️ Balanced (10s + Jit)",Func=function() applyPreset(10,  true,  {"HumanoidRootPart"}, nil,                    "Balanced", "Everyday Usage")    end })
+PGen2:AddButton({ Text="🔭 Wide (14s)",          Func=function() applyPreset(14,  false, {"HumanoidRootPart"}, nil,                    "Wide",     "Noticeable Range")  end })
+PGen2:AddDivider()
+PGen2:AddButton({ Text="🔥 Rage (25s)",          Func=function() applyPreset(25,  false, {"HumanoidRootPart"}, Color3.fromRGB(255,0,0), "Rage",     "High Risk")      end })
+PGen2:AddButton({ Text="💀 MAX (30s Full Body)", Func=function()
     for k in pairs(CFG.parts) do CFG.parts[k] = true end
-    applyPreset(30, false, nil, Color3.fromRGB(255,0,0), "MAX", "blatant")
+    applyPreset(30, false, nil, Color3.fromRGB(255,0,0), "MAX", "Blatant Cheating")
 end })
 
 -- ══════════════════════════════════════
---   PARTS TAB
+--   HITBOXES TAB
 -- ══════════════════════════════════════
-local LP1 = Tabs.Parts:AddLeftGroupbox("Core + R6")
-local RP1 = Tabs.Parts:AddRightGroupbox("R15")
+local LHit = Tabs.Hitboxes:AddLeftGroupbox("Core & R6 Rig")
+local RHit = Tabs.Hitboxes:AddRightGroupbox("R15 Rig")
 
 local function mkTog(gb, pname, flag, def)
     gb:AddToggle(flag, { Text=pname, Default=def or false,
@@ -898,25 +885,25 @@ local function mkTog(gb, pname, flag, def)
         end })
 end
 
-mkTog(LP1, "HumanoidRootPart", "p_hrp",  true)
-mkTog(LP1, "Head",             "p_head")
-LP1:AddDivider()
+mkTog(LHit, "HumanoidRootPart", "p_hrp",  true)
+mkTog(LHit, "Head",             "p_head")
+LHit:AddDivider()
 for _, n in ipairs({"Torso","Left Arm","Right Arm","Left Leg","Right Leg"}) do
-    mkTog(LP1, n, "p_"..n:gsub(" ","_"))
+    mkTog(LHit, n, "p_"..n:gsub(" ","_"))
 end
-LP1:AddDivider()
-LP1:AddButton({ Text="All on",     Func=function()
+LHit:AddDivider()
+LHit:AddButton({ Text="Enable All Parts",  Func=function()
     for k in pairs(CFG.parts) do CFG.parts[k] = true end
-    scPl = {}; pStyle = {}; Lib:Notify("All parts on", 2)
+    scPl = {}; pStyle = {}; Lib:Notify("All hitbox parts enabled", 2)
 end })
-LP1:AddButton({ Text="All off",    Func=function()
+LHit:AddButton({ Text="Disable All Parts", Func=function()
     for k in pairs(CFG.parts) do CFG.parts[k] = false end
-    restoreAll(); Lib:Notify("All parts off", 2)
+    restoreAll(); Lib:Notify("All hitbox parts disabled", 2)
 end })
-LP1:AddButton({ Text="HRP + Head", Func=function()
+LHit:AddButton({ Text="Head + Torso Only", Func=function()
     for k in pairs(CFG.parts) do CFG.parts[k] = false end
     CFG.parts.HumanoidRootPart = true; CFG.parts.Head = true
-    scPl = {}; pStyle = {}; Lib:Notify("HRP + Head only", 2)
+    scPl = {}; pStyle = {}; Lib:Notify("Head & Torso hitbox only", 2)
 end })
 
 for _, n in ipairs({
@@ -924,14 +911,14 @@ for _, n in ipairs({
     "LeftUpperArm","RightUpperArm","LeftLowerArm","RightLowerArm","LeftHand","RightHand",
     "LeftUpperLeg","RightUpperLeg","LeftLowerLeg","RightLowerLeg","LeftFoot","RightFoot",
 }) do
-    mkTog(RP1, n, "p_"..n)
+    mkTog(RHit, n, "p_"..n)
 end
 
 -- ══════════════════════════════════════
---   COLORS TAB
+--   VISUALS TAB
 -- ══════════════════════════════════════
-local LC = Tabs.Colors:AddLeftGroupbox("Color")
-local RC = Tabs.Colors:AddRightGroupbox("Swatches")
+local LVis = Tabs.Visuals:AddLeftGroupbox("Color Configuration")
+local RVis = Tabs.Visuals:AddRightGroupbox("Color Palette")
 
 local function applyColor(c)
     CFG.color   = c
@@ -944,34 +931,34 @@ local function applyColor(c)
     pcall(function() Options.hitboxColor:SetValueRGB(c) end)
 end
 
-LC:AddLabel("Hitbox color"):AddColorPicker("hitboxColor", {
-    Default=CFG.color, Title="Color",
+LVis:AddLabel("Hitbox Color"):AddColorPicker("hitboxColor", {
+    Default=CFG.color, Title="Select Color",
     Callback=function(c)
         applyColor(c)
-        log("Color changed", "#"..c3hex(c), baseF(), c3int(c))
+        log("Hitbox Color Updated", "#"..c3hex(c), baseF(), c3int(c))
     end })
 
-LC:AddInput("hexIn", { Text="Hex", Default="", Numeric=false, Finished=true,
+LVis:AddInput("hexIn", { Text="Hex Code", Default="", Numeric=false, Finished=true,
     Placeholder="FF3232 or #FF3232",
     Callback=function(t)
         local c = hex2c3(t)
         if c then
             applyColor(c)
-            log("Color hex", "#"..c3hex(c), baseF(), c3int(c))
-            Lib:Notify("#"..c3hex(c), 2)
+            log("Hex Color Applied", "#"..c3hex(c), baseF(), c3int(c))
+            Lib:Notify("Color set to: #"..c3hex(c), 2)
         else
-            Lib:Notify("Bad hex — use RRGGBB or #RRGGBB", 3)
+            Lib:Notify("Invalid Hex Code\nFormat: RRGGBB or #RRGGBB", 3)
         end
     end })
 
-LC:AddButton({ Text="Copy hex", Func=function()
+LVis:AddButton({ Text="Copy Hex Code", Func=function()
     pcall(function() setclipboard("#"..c3hex(CFG.color)) end)
     Lib:Notify("Copied: #"..c3hex(CFG.color), 3)
 end })
 
-LC:AddDivider()
+LVis:AddDivider()
 
-LC:AddToggle("rainbowMode", { Text="Rainbow", Default=false,
+LVis:AddToggle("rainbowMode", { Text="Rainbow Cycle", Default=false,
     Callback=function(v)
         CFG.rainbow = v
         if not v then
@@ -980,7 +967,7 @@ LC:AddToggle("rainbowMode", { Text="Rainbow", Default=false,
             end
             refreshBoxColors(); pStyle = {}
         end
-        log("Rainbow "..(v and "on" or "off"), nil, baseF(), 10181046)
+        log("Rainbow Mode "..(v and "Enabled" or "Disabled"), nil, baseF(), 10181046)
     end })
 
 for _, c in ipairs({
@@ -990,63 +977,63 @@ for _, c in ipairs({
     {"Black",20,20,20}, {"Gray",128,128,128},  {"Brown",150,75,0},
 }) do
     local lbl, r, g, b = c[1], c[2], c[3], c[4]
-    RC:AddButton({ Text=lbl, Func=function()
+    RVis:AddButton({ Text=lbl, Func=function()
         applyColor(Color3.fromRGB(r, g, b))
-        log("Color → "..lbl, nil, baseF(), c3int(CFG.color))
-        Lib:Notify(lbl, 2)
+        log("Color Set to "..lbl, nil, baseF(), c3int(CFG.color))
+        Lib:Notify(lbl.." color applied", 2)
     end })
 end
 
 -- ══════════════════════════════════════
---   STEALTH TAB
+--   ANTI-DETECTION TAB
 -- ══════════════════════════════════════
-local LSt = Tabs.Stealth:AddLeftGroupbox("Jitter")
-local RSt = Tabs.Stealth:AddRightGroupbox("Aim Gate")
-local BSt = Tabs.Stealth:AddLeftGroupbox("Universal Scan")
+local LAD  = Tabs.AntiDetect:AddLeftGroupbox("Jitter Mechanics")
+local RAD  = Tabs.AntiDetect:AddRightGroupbox("Aimbot Gate")
+local BAD  = Tabs.AntiDetect:AddLeftGroupbox("Universal Scanner")
 
-LSt:AddToggle("jitterOn", { Text="Jitter", Default=false,
+LAD:AddToggle("jitterOn", { Text="Enable Jitter", Default=false,
     Callback=function(v)
         CFG.jitter = v
-        log("Jitter "..(v and "on" or "off"), nil, baseF(), 10181046)
+        log("Jitter Mechanism "..(v and "Enabled" or "Disabled"), nil, baseF(), 10181046)
     end })
-LSt:AddSlider("jitterAmt", { Text="Strength", Default=4, Min=1, Max=20, Rounding=1,
+LAD:AddSlider("jitterAmt", { Text="Jitter Intensity", Default=4, Min=1, Max=20, Rounding=1,
     Callback=function(v) CFG.jitterAmt = v/10 end })
-LSt:AddDivider()
-LSt:AddLabel("Best: 6-8s + jitter + aim gate")
+LAD:AddDivider()
+LAD:AddLabel("Recommended: 6-8s + Jitter + Aim Gate")
 
-RSt:AddToggle("aimGate", { Text="Aim gate", Default=false,
+RAD:AddToggle("aimGate", { Text="Aim Gate", Default=false,
     Callback=function(v)
         CFG.aimGate = v; if not v then restoreAll() end
-        log("Aim gate "..(v and "on" or "off"), nil, baseF(), 10181046)
+        log("Aim Gate "..(v and "Enabled" or "Disabled"), nil, baseF(), 10181046)
     end })
-RSt:AddSlider("aimFOV", { Text="FOV radius", Default=20, Min=5, Max=120, Rounding=1, Suffix="°",
+RAD:AddSlider("aimFOV", { Text="FOV Radius", Default=20, Min=5, Max=120, Rounding=1, Suffix="°",
     Callback=function(v) CFG.aimFOV = v end })
 
-BSt:AddToggle("univScan", { Text="Works on any rig", Default=true,
+BAD:AddToggle("univScan", { Text="Universal Rig Support", Default=true,
     Callback=function(v)
         CFG.universalScan = v; scPl = {}
-        log("Universal scan "..(v and "on" or "off"), nil, baseF(), 10181046)
+        log("Universal Scanner "..(v and "Enabled" or "Disabled"), nil, baseF(), 10181046)
     end })
-BSt:AddLabel("Keep on for custom / anime rigs")
+BAD:AddLabel("Required for Custom/Anime rigs")
 
 -- ══════════════════════════════════════
---   TOOLS TAB
+--   UTILITIES TAB
 -- ══════════════════════════════════════
-local LTool = Tabs.Tools:AddLeftGroupbox("Test Mode")
-local RTool = Tabs.Tools:AddRightGroupbox("Debug")
-local LCfg  = Tabs.Tools:AddLeftGroupbox("Configs")
-local RCfg  = Tabs.Tools:AddRightGroupbox("Quick Saves")
+local LUtil = Tabs.Utilities:AddLeftGroupbox("Test Mode")
+local RUtil = Tabs.Utilities:AddRightGroupbox("Diagnostics")
+local LCfg  = Tabs.Utilities:AddLeftGroupbox("Config Management")
+local RCfg  = Tabs.Utilities:AddRightGroupbox("Quick Slots")
 
-LTool:AddSlider("testDur", { Text="Duration", Default=5, Min=2, Max=30, Rounding=1, Suffix="s",
+LUtil:AddSlider("testDur", { Text="Duration", Default=5, Min=2, Max=30, Rounding=1, Suffix="s",
     Callback=function(v) CFG.testTimer = v end })
-LTool:AddButton({ Text="▶  Run test", Func=function()
-    if CFG.testActive then Lib:Notify("Already running", 2); return end
+LUtil:AddButton({ Text="▶ Start Test", Func=function()
+    if CFG.testActive then Lib:Notify("Test already in progress", 2); return end
     runTest(CFG.testTimer)
 end })
-LTool:AddDivider()
-LTool:AddLabel("Makes hitboxes visible temporarily")
+LUtil:AddDivider()
+LUtil:AddLabel("Temporarily visualizes hitboxes")
 
-RTool:AddButton({ Text="Player list (F9)", Func=function()
+RUtil:AddButton({ Text="List Players (F9)", Func=function()
     local n = 0
     for _, p in ipairs(Players:GetPlayers()) do
         if p ~= LP then
@@ -1059,104 +1046,104 @@ RTool:AddButton({ Text="Player list (F9)", Func=function()
             print("[UHBE] "..p.Name.." → "..rig); n = n + 1
         end
     end
-    Lib:Notify(n.." players — check F9", 3)
+    Lib:Notify(n.." players listed — check console", 3)
 end })
 
-RTool:AddButton({ Text="Count expanded parts", Func=function()
+RUtil:AddButton({ Text="Count Expanded Parts", Func=function()
     local n = 0
     for part in pairs(origSz) do if part and part.Parent then n = n + 1 end end
-    Lib:Notify(n.." parts expanded", 3)
+    Lib:Notify("Active hitbox parts: "..n, 3)
 end })
 
-RTool:AddButton({ Text="Force reset", Func=function()
+RUtil:AddButton({ Text="Force Reset", Func=function()
     restoreAll()
-    log2("Force reset", "All parts restored", baseF(), 15158332)
-    Lib:Notify("All hitboxes restored", 3)
+    log2("Manual Reset Triggered", "All hitbox parts restored", baseF(), 15158332)
+    Lib:Notify("All hitboxes reset to default", 3)
 end })
 
-RTool:AddDivider()
+RUtil:AddDivider()
 
-RTool:AddButton({ Text="Scan this game's AC", Func=function()
+RUtil:AddButton({ Text="Analyze Game Security", Func=function()
     local ac, acm, score = scanAC()
     local bl = BLACKLIST[game.PlaceId]
     Lib:Notify(bl and "⛔ BLACKLISTED: "..bl or ac, 7)
-    print("[UHBE] AC:          "..ac)
-    print("[UHBE] Modules:     "..acm)
-    print("[UHBE] Score:       "..score)
-    print("[UHBE] Blacklisted: "..(bl or "No"))
+    print("[UHBE] Security Level: "..ac)
+    print("[UHBE] Modules Found:   "..acm)
+    print("[UHBE] Risk Score:      "..score)
+    print("[UHBE] Blacklist Status: "..(bl or "Safe"))
 end })
 
-RTool:AddButton({ Text="Print blacklist (F9)", Func=function()
-    print("[UHBE] Blacklisted games:")
+RUtil:AddButton({ Text="Print Blacklist (F9)", Func=function()
+    print("[UHBE] Blacklisted Games:")
     for id, name in pairs(BLACKLIST) do
-        print("  "..name.." — PlaceId "..id)
+        print("  "..name.." (ID: "..id..")")
     end
-    Lib:Notify("Blacklist printed to F9", 3)
+    Lib:Notify("Blacklist printed to console", 3)
 end })
 
 local cfgName = ""
-LCfg:AddInput("cfgNameInput", { Text="Name", Default="", Numeric=false, Finished=false,
+LCfg:AddInput("cfgNameInput", { Text="Config Name", Default="", Numeric=false, Finished=false,
     Placeholder="e.g. ranked",
     Callback=function(t) cfgName = t end })
-LCfg:AddButton({ Text="Save", Func=function()
-    if cfgName == "" then Lib:Notify("Type a name first", 3); return end
+LCfg:AddButton({ Text="Save Config", Func=function()
+    if cfgName == "" then Lib:Notify("Please enter a config name", 3); return end
     local ok = saveCFG(cfgName)
-    log("Config saved: "..cfgName, nil, baseF(), 3066993)
+    log("Configuration Saved: "..cfgName, nil, baseF(), 3066993)
     Lib:Notify(ok and "Saved: "..cfgName or "Save failed", 4)
 end })
-LCfg:AddButton({ Text="Load", Func=function()
-    if cfgName == "" then Lib:Notify("Type a name first", 3); return end
+LCfg:AddButton({ Text="Load Config", Func=function()
+    if cfgName == "" then Lib:Notify("Please enter a config name", 3); return end
     local ok = loadCFG(cfgName); pStyle = {}; scPl = {}
-    log("Config loaded: "..cfgName, nil, baseF(), ok and 3066993 or 15158332)
-    Lib:Notify(ok and "Loaded: "..cfgName or "Not found", 4)
+    log("Configuration Loaded: "..cfgName, nil, baseF(), ok and 3066993 or 15158332)
+    Lib:Notify(ok and "Loaded: "..cfgName or "Config not found", 4)
 end })
-LCfg:AddButton({ Text="Delete", Func=function()
-    if cfgName == "" then Lib:Notify("Type a name first", 3); return end
+LCfg:AddButton({ Text="Delete Config", Func=function()
+    if cfgName == "" then Lib:Notify("Please enter a config name", 3); return end
     pcall(function() delfile(FOLDER.."/"..cfgName..".json") end)
     Lib:Notify("Deleted: "..cfgName, 3)
 end })
 
 local SLOTS = {"Legit","Rage","Tournament","Casual"}
 for _, s in ipairs(SLOTS) do
-    RCfg:AddButton({ Text="Save → "..s, Func=function()
-        saveCFG(s); log("Quick save: "..s, nil, baseF(), 3066993)
-        Lib:Notify("Saved: "..s, 2)
+    RCfg:AddButton({ Text="Save to "..s, Func=function()
+        saveCFG(s); log("Quick Save: "..s, nil, baseF(), 3066993)
+        Lib:Notify("Saved to slot: "..s, 2)
     end })
 end
 RCfg:AddDivider()
 for _, s in ipairs(SLOTS) do
-    RCfg:AddButton({ Text="Load → "..s, Func=function()
+    RCfg:AddButton({ Text="Load from "..s, Func=function()
         local ok = loadCFG(s); pStyle = {}; scPl = {}
-        log("Quick load: "..s, nil, baseF(), ok and 3066993 or 15158332)
-        Lib:Notify(ok and "Loaded: "..s or s.." not saved yet", 3)
+        log("Quick Load: "..s, nil, baseF(), ok and 3066993 or 15158332)
+        Lib:Notify(ok and "Loaded from slot: "..s or "Slot "..s.." is empty", 3)
     end })
 end
 
 -- ══════════════════════════════════════
 --   SETTINGS TAB
 -- ══════════════════════════════════════
-local LSett = Tabs.Settings:AddLeftGroupbox("Keybinds")
-local RSett = Tabs.Settings:AddRightGroupbox("About")
+local LSet = Tabs.Settings:AddLeftGroupbox("Keybinds")
+local RSet = Tabs.Settings:AddRightGroupbox("About")
 
-LSett:AddLabel("Menu"):AddKeyPicker("MenuKeybind", {Default="Insert", NoUI=true, Text="Menu"})
+LSet:AddLabel("Toggle Menu"):AddKeyPicker("MenuKeybind", {Default="Insert", NoUI=true, Text="Menu"})
 Lib.ToggleKeybind = Options.MenuKeybind
-LSett:AddDivider()
-LSett:AddLabel("K      = toggle hitbox")
-LSett:AddLabel("L      = toggle rainbow")
-LSett:AddLabel("P      = cycle preset")
-LSett:AddLabel("Insert = hide / show menu")
+LSet:AddDivider()
+LSet:AddLabel("K      = Toggle Hitbox")
+LSet:AddLabel("L      = Toggle Rainbow")
+LSet:AddLabel("P      = Cycle Presets")
+LSet:AddLabel("Insert = Toggle UI")
 
 ThemeMgr:SetLibrary(Lib)
 SaveMgr:SetLibrary(Lib)
 ThemeMgr:ApplyToTab(Tabs.Settings)
 
-RSett:AddLabel("Brimned - UHBE")
-RSett:AddLabel("Universal Hitbox Expander")
-RSett:AddLabel("discord.gg/GkqDETqxRd")
-RSett:AddDivider()
-RSett:AddLabel("First script by Brimned Studio")
-RSett:AddDivider()
-RSett:AddButton({ Text="Copy Discord link", Func=function()
+RSet:AddLabel("Brimned - UHBE")
+RSet:AddLabel("Universal Hitbox Expander")
+RSet:AddLabel("discord.gg/GkqDETqxRd")
+RSet:AddDivider()
+RSet:AddLabel("Developed by Brimned Studio")
+RSet:AddDivider()
+RSet:AddButton({ Text="Copy Discord Invite", Func=function()
     pcall(function() setclipboard("https://discord.gg/GkqDETqxRd") end)
     Lib:Notify("discord.gg/GkqDETqxRd", 4)
 end })
@@ -1164,7 +1151,7 @@ end })
 -- ══════════════════════════════════════
 --   HOTKEYS
 -- ══════════════════════════════════════
-local _hotLast  = { k=0, r=0, p=0 }
+local _hotLast  = { k=0, l=0, p=0 }
 local HOTKEY_CD = 0.25
 
 local PRESET_CYCLE = {
@@ -1183,17 +1170,17 @@ UIS.InputBegan:Connect(function(input, gpe)
         if not CFG.on then restoreAll() end
         Toggles.hitboxOn:SetValue(CFG.on)
         local f = baseF()
-        table.insert(f, { name="Status", value=CFG.on and "on" or "off", inline=true })
-        log(CFG.on and "Hitbox on (K)" or "Hitbox off (K)", nil, f, CFG.on and 3066993 or 15158332)
-        Lib:Notify("Hitbox "..(CFG.on and "ON" or "OFF"), 2)
+        table.insert(f, { name="Status", value=CFG.on and "✅ Active" or "❌ Inactive", inline=true })
+        log(CFG.on and "Hitbox Enabled (K)" or "Hitbox Disabled (K)", nil, f, CFG.on and 3066993 or 15158332)
+        Lib:Notify("Hitbox "..(CFG.on and "ENABLED" or "DISABLED"), 2)
     end
 
     if input.KeyCode == Enum.KeyCode.L and (now - _hotLast.l) > HOTKEY_CD then
         _hotLast.l = now
         CFG.rainbow = not CFG.rainbow
         Toggles.rainbowMode:SetValue(CFG.rainbow)
-        log("Rainbow "..(CFG.rainbow and "on" or "off"), nil, baseF(), 10181046)
-        Lib:Notify("Rainbow "..(CFG.rainbow and "ON" or "OFF"), 2)
+        log("Rainbow Mode "..(CFG.rainbow and "Enabled" or "Disabled"), nil, baseF(), 10181046)
+        Lib:Notify("Rainbow "..(CFG.rainbow and "ENABLED" or "DISABLED"), 2)
     end
 
     if input.KeyCode == Enum.KeyCode.P and (now - _hotLast.p) > HOTKEY_CD then
@@ -1211,8 +1198,8 @@ UIS.InputBegan:Connect(function(input, gpe)
 end)
 
 -- ══════════════════════════════════════
---   DONE
+--   INITIALIZATION COMPLETE
 -- ══════════════════════════════════════
-Lib:Notify("Brimned - UHBE loaded  ·  discord.gg/GkqDETqxRd", 5)
+Lib:Notify("Brimned - UHBE Loaded Successfully\nJoin discord.gg/GkqDETqxRd", 5)
 
 end)()
