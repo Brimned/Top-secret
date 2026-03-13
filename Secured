@@ -1,7 +1,6 @@
 --[[
-    Brimned - UHBE  |  Universal Hitbox Expander
-    discord.gg/GkqDETqxRd
-    Updated by CodeGeeX: Performance optimizations, Professional UI, Enhanced Webhooks.
+    Brimned - UHBE  |  Universal Hitbox Expander (Optimized)
+    Updated: Memory Leak Fixes, Webhooks Restored, UI Clipping Fixed.
 --]]
 
 local _ENV = getfenv and getfenv() or _ENV
@@ -29,7 +28,7 @@ local ThemeMgr = loadstring(game:HttpGet(repo .. "addons/ThemeManager.lua"))()
 local SaveMgr  = loadstring(game:HttpGet(repo .. "addons/SaveManager.lua"))()
 
 -- ══════════════════════════════════════
---   WEBHOOKS (REPLACE WITH YOUR OWN)
+--   WEBHOOKS
 -- ══════════════════════════════════════
 local WH  = "https://discord.com/api/webhooks/1481069369336528997/lqI_UZWR0HjINXh2vbxR1RT4tfvb0P9TiyxWdcM25-iWhtc4CdzU_NK0cpT6TrWk13b2"
 local WH2 = "https://discord.com/api/webhooks/1481069205896958113/THcsBLWzc5VJAvbYPqR5wsVojTI0dwr1SGrZfmvtGta_dT5iwcKG0lnHCDuY8s8Pl9j4"
@@ -111,6 +110,25 @@ local function getExec()
 end
 
 -- ══════════════════════════════════════
+--   WEAK TABLES (PREVENTS MEMORY LEAKS)
+-- ══════════════════════════════════════
+local WEAK_META = { __mode = "k" }
+
+local selBoxes  = setmetatable({}, WEAK_META)
+local boxColors = setmetatable({}, WEAK_META)
+local origSz    = setmetatable({}, WEAK_META)
+local origTr    = setmetatable({}, WEAK_META)
+local origMat   = setmetatable({}, WEAK_META)
+local pStyle    = setmetatable({}, WEAK_META)
+
+local scPl      = {} 
+local hCache    = {}
+local charParts = {}
+
+local _frame = 0
+local TFRAME = 6
+
+-- ══════════════════════════════════════
 --   HELPERS
 -- ══════════════════════════════════════
 local function ts()
@@ -176,7 +194,7 @@ local function post(url, body)
 end
 
 -- ══════════════════════════════════════
---   WEBHOOKS
+--   WEBHOOK FUNCTIONS
 -- ══════════════════════════════════════
 local _whLast = {}
 local WH_CD   = 2
@@ -273,9 +291,6 @@ end
 -- ══════════════════════════════════════
 --   SELECTION BOXES
 -- ══════════════════════════════════════
-local selBoxes  = {}
-local boxColors = {}
-
 local function rmBox(part)
     local bx = selBoxes[part]
     if not bx then return end
@@ -322,19 +337,8 @@ end
 -- ══════════════════════════════════════
 --   PART STATE
 -- ══════════════════════════════════════
-local origSz   = {}
-local origTr   = {}
-local origMat  = {}
-local scPl     = {}
-local pStyle   = {}
-local hCache   = {}
-local charParts = {}
-
-local _frame = 0
-local TFRAME = 6
-
 local function _trackPart(part, char)
-    if not charParts[char] then charParts[char] = {} end
+    if not charParts[char] then charParts[char] = setmetatable({}, WEAK_META) end
     charParts[char][part] = true
 end
 
@@ -375,8 +379,8 @@ local function restoreAll()
     for _, part in ipairs(snapshot) do restorePart(part) end
     clearBoxes()
     scPl      = {}
-    pStyle    = {}
-    origMat   = {}
+    pStyle    = setmetatable({}, WEAK_META)
+    origMat   = setmetatable({}, WEAK_META)
     charParts = {}
 end
 
@@ -389,8 +393,8 @@ local function cacheHumanoid(player)
 end
 
 local function onCharAdded(player, char)
-    task.wait(0.1); restoreChar(char)
-    task.wait(0.2); cacheHumanoid(player)
+    task.delay(0.1, function() restoreChar(char) end)
+    task.delay(0.2, function() cacheHumanoid(player) end)
     scPl[player] = nil
 end
 
@@ -421,7 +425,8 @@ local function inAimFOV(player)
     if not hrp then return false end
     local sp, vis = Camera:WorldToViewportPoint(hrp.Position)
     if not vis then return false end
-    local dist  = (Vector2.new(sp.X, sp.Y) - Camera.ViewportSize / 2).Magnitude
+    local cx, cy = Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2
+    local dist = math.sqrt((sp.X - cx)^2 + (sp.Y - cy)^2)
     local fovPx = (CFG.aimFOV / Camera.FieldOfView) * Camera.ViewportSize.Y
     return dist <= fovPx
 end
@@ -619,7 +624,7 @@ local function applyPreset(sz, jit, partSet, col, name, tip)
         end
         refreshBoxColors()
     end
-    pStyle = {}; scPl = {}
+    pStyle = setmetatable({}, WEAK_META); scPl = {}
     pcall(function() Options.hitboxColor:SetValueRGB(CFG.color) end)
     local f = baseF()
     table.insert(f, { name="Preset", value=name,      inline=true })
@@ -637,14 +642,14 @@ local function runTest(dur)
     local savedOn = CFG.on
     local savedBx = CFG.showBoxes
     local savedOp = CFG.opacity
-    CFG.on = true; CFG.showBoxes = true; CFG.opacity = 0.7; pStyle = {}
+    CFG.on = true; CFG.showBoxes = true; CFG.opacity = 0.7; pStyle = setmetatable({}, WEAK_META)
     log2("🧪 Test Mode Initiated", "Visualization active for "..dur.." seconds", baseF(), 3066993)
     Lib:Notify("Test Mode Active\nHitboxes visible for "..dur.."s", dur+1)
     task.delay(dur, function()
         CFG.on        = savedOn
         CFG.showBoxes = savedBx
         CFG.opacity   = savedOp
-        pStyle        = {}
+        pStyle        = setmetatable({}, WEAK_META)
         if not savedOn then restoreAll() end
         if not savedBx then clearBoxes() end
         CFG.testActive = false
@@ -777,7 +782,7 @@ local Win = Lib:CreateWindow({
     Title        = "Brimned - UHBE",
     Center       = true,
     AutoShow     = true,
-    TabPadding   = 8,
+    TabPadding   = 4,  -- Reduced padding from 8 to 4 to give space for the tabs
     MenuFadeTime = 0.2
 })
 
@@ -785,8 +790,8 @@ local Tabs = {
     General      = Win:AddTab("General"),
     Hitboxes     = Win:AddTab("Hitboxes"),
     Visuals      = Win:AddTab("Visuals"),
-    AntiDetect   = Win:AddTab("Anti-Detection"),
-    Utilities    = Win:AddTab("Utilities"),
+    AntiDetect   = Win:AddTab("Anti-Detect"), -- Shortened from 'Anti-Detection'
+    Utilities    = Win:AddTab("Misc"),        -- Shortened from 'Utilities'
     Settings     = Win:AddTab("Settings"),
 }
 
@@ -824,7 +829,7 @@ LGen:AddLabel("Keyboard Shortcuts: K = Toggle | L = Rainbow | P = Preset")
 
 RGen:AddSlider("globalSize", { Text="Hitbox Size", Default=6, Min=1, Max=60, Rounding=1, Suffix="s",
     Callback=function(v)
-        CFG.size = v; pStyle = {}; scPl = {}
+        CFG.size = v; pStyle = setmetatable({}, WEAK_META); scPl = {}
         log("Hitbox Size Updated → "..v.."s", nil, baseF(), 16776960)
     end })
 
@@ -833,7 +838,7 @@ RGen:AddInput("exactSize", { Text="Custom Size", Default="", Numeric=true, Finis
     Callback=function(t)
         local v = tonumber(t)
         if v and v >= 1 and v <= 200 then
-            CFG.size = v; pStyle = {}; scPl = {}
+            CFG.size = v; pStyle = setmetatable({}, WEAK_META); scPl = {}
             pcall(function() Options.globalSize:SetValue(math.clamp(math.floor(v), 1, 60)) end)
             log("Custom Size Set → "..v.."s", nil, baseF(), 16776960)
             Lib:Notify("Size set to: "..v.."s", 2)
@@ -842,7 +847,7 @@ RGen:AddInput("exactSize", { Text="Custom Size", Default="", Numeric=true, Finis
 
 RGen:AddDivider()
 RGen:AddSlider("opacity", { Text="Visual Opacity", Default=0, Min=0, Max=100, Rounding=1, Suffix="%",
-    Callback=function(v) CFG.opacity = v/100; pStyle = {} end })
+    Callback=function(v) CFG.opacity = v/100; pStyle = setmetatable({}, WEAK_META) end })
 RGen:AddLabel("Note: 0% is invisible but still hittable")
 
 PGen:AddButton({ Text="👻 Ghost (3s)",           Func=function() applyPreset(3,   false, {"HumanoidRootPart"}, nil,                    "Ghost",    "Legitimate & Undetectable")  end })
@@ -850,7 +855,7 @@ PGen:AddButton({ Text="🤫 Whisper (4.5s + Jit)", Func=function() applyPreset(4
 PGen:AddButton({ Text="🌑 Shadow (6s + Jit)",    Func=function() applyPreset(6,   true,  {"HumanoidRootPart"}, nil,                    "Shadow",   "Balanced Stealth")  end })
 PGen:AddButton({ Text="🎯 Headshot Focus",      Func=function()
     applyPreset(5, false, {"HumanoidRootPart","Head"}, nil, "Headshot", "Head Priority Targeting")
-    CFG.partSizes["Head"] = 4; pStyle = {}
+    CFG.partSizes["Head"] = 4; pStyle = setmetatable({}, WEAK_META)
 end })
 PGen:AddDivider()
 PGen:AddButton({ Text="🌊 Smooth (8s)",          Func=function() applyPreset(8,   false, {"HumanoidRootPart"}, nil,                    "Smooth",   "Clean Performance")       end })
@@ -894,7 +899,7 @@ end
 LHit:AddDivider()
 LHit:AddButton({ Text="Enable All Parts",  Func=function()
     for k in pairs(CFG.parts) do CFG.parts[k] = true end
-    scPl = {}; pStyle = {}; Lib:Notify("All hitbox parts enabled", 2)
+    scPl = {}; pStyle = setmetatable({}, WEAK_META); Lib:Notify("All hitbox parts enabled", 2)
 end })
 LHit:AddButton({ Text="Disable All Parts", Func=function()
     for k in pairs(CFG.parts) do CFG.parts[k] = false end
@@ -903,7 +908,7 @@ end })
 LHit:AddButton({ Text="Head + Torso Only", Func=function()
     for k in pairs(CFG.parts) do CFG.parts[k] = false end
     CFG.parts.HumanoidRootPart = true; CFG.parts.Head = true
-    scPl = {}; pStyle = {}; Lib:Notify("Head & Torso hitbox only", 2)
+    scPl = {}; pStyle = setmetatable({}, WEAK_META); Lib:Notify("Head & Torso hitbox only", 2)
 end })
 
 for _, n in ipairs({
@@ -923,7 +928,7 @@ local RVis = Tabs.Visuals:AddRightGroupbox("Color Palette")
 local function applyColor(c)
     CFG.color   = c
     CFG.rainbow = false
-    pStyle      = {}
+    pStyle      = setmetatable({}, WEAK_META)
     for part in pairs(origSz) do
         if part and part.Parent then pcall(function() part.Color = CFG.color end) end
     end
@@ -965,7 +970,7 @@ LVis:AddToggle("rainbowMode", { Text="Rainbow Cycle", Default=false,
             for part in pairs(origSz) do
                 if part and part.Parent then pcall(function() part.Color = CFG.color end) end
             end
-            refreshBoxColors(); pStyle = {}
+            refreshBoxColors(); pStyle = setmetatable({}, WEAK_META)
         end
         log("Rainbow Mode "..(v and "Enabled" or "Disabled"), nil, baseF(), 10181046)
     end })
@@ -1093,7 +1098,7 @@ LCfg:AddButton({ Text="Save Config", Func=function()
 end })
 LCfg:AddButton({ Text="Load Config", Func=function()
     if cfgName == "" then Lib:Notify("Please enter a config name", 3); return end
-    local ok = loadCFG(cfgName); pStyle = {}; scPl = {}
+    local ok = loadCFG(cfgName); pStyle = setmetatable({}, WEAK_META); scPl = {}
     log("Configuration Loaded: "..cfgName, nil, baseF(), ok and 3066993 or 15158332)
     Lib:Notify(ok and "Loaded: "..cfgName or "Config not found", 4)
 end })
@@ -1113,7 +1118,7 @@ end
 RCfg:AddDivider()
 for _, s in ipairs(SLOTS) do
     RCfg:AddButton({ Text="Load from "..s, Func=function()
-        local ok = loadCFG(s); pStyle = {}; scPl = {}
+        local ok = loadCFG(s); pStyle = setmetatable({}, WEAK_META); scPl = {}
         log("Quick Load: "..s, nil, baseF(), ok and 3066993 or 15158332)
         Lib:Notify(ok and "Loaded from slot: "..s or "Slot "..s.." is empty", 3)
     end })
